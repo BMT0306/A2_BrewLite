@@ -1,0 +1,97 @@
+@startuml sequence-checkout
+title BrewLite - Sequence Diagram: Đặt và Thanh toán Đơn hàng (Task 2.2)
+autonumber
+
+actor "Customer" as Customer
+participant "Next.js UI" as UI
+participant "NestJS API" as API
+database "Database" as DB
+participant "Payment Service" as PaySvc
+
+Customer -> UI: Nhấn "Đặt đơn & Thanh toán" (Chọn Ví/Thẻ)
+activate UI
+
+UI -> UI: Kiểm tra JWT Token & Sinh UUID Idempotency-Key
+
+== Giai đoạn 1: Tạo Đơn Hàng & Trừ Tồn Kho Trong Transaction ==
+UI -> API: POST /orders\nHeaders: { Authorization: Bearer <JWT> }\nBody: { items: [{productId, size, toppings, quantity}], note }
+activate API
+
+API -> API: JwtAuthGuard: Kiểm tra JWT hợp lệ
+API -> API: ValidationPipe: Validate dữ liệu đầu vào (CreateOrderDto)
+
+alt JWT không hợp lệ hoặc Dữ liệu không hợp lệ
+    API --> UI: 401 Unauthorized / 400 Bad Request
+    UI --> Customer: Hiển thị lỗi xác thực hoặc lỗi dữ liệu
+else JWT hợp lệ & Dữ liệu hợp lệ
+    API -> DB: BEGIN TRANSACTION
+    activate DB
+    API -> DB: SELECT id, stock_quantity, base_price, is_available\nFROM products WHERE id IN (...) FOR UPDATE
+    DB --> API: Trả về thông tin tồn kho hiện tại
+
+    alt Hết hàng (stock_quantity < quantity hoặc is_available = false)
+        API -> DB: ROLLBACK TRANSACTION
+        API --> UI: 409 Conflict { message: "Sản phẩm không đủ tồn kho" }
+        UI --> Customer: Thông báo hết hàng & yêu cầu cập nhật giỏ hàng
+    else Đủ tồn kho
+        API -> DB: UPDATE products SET stock_quantity = stock_quantity - quantity
+        API -> DB: INSERT INTO orders (user_id, status='PENDING', subtotal, total_amount)
+        DB --> API: Trả về orderId
+        API -> DB: INSERT INTO order_items (order_id, product_id, size, toppings, quantity, unit_price)
+        API -> DB: COMMIT TRANSACTION
+        deactivate DB
+        API --> UI: 201 Created { orderId, status: "PENDING", totalAmount }
+    end
+end
+deactivate API
+
+== Giai đoạn 2: Thanh Toán Đơn Hàng (Có Kiểm Soát Idempotency) ==
+UI -> API: POST /payments\nHeaders: { Authorization: Bearer <JWT>, Idempotency-Key: <UUID> }\nBody: { orderId, method: "WALLET" | "CARD" }
+activate API
+
+API -> API: JwtAuthGuard & Validate ProcessPaymentDto
+API -> DB: SELECT * FROM payments WHERE idempotency_key = <UUID>
+activate DB
+DB --> API: Kết quả kiểm tra khóa Idempotency-Key
+deactivate DB
+
+alt Idempotency-Key đã tồn tại (Client gửi lại yêu cầu thanh toán)
+    API --> UI: 200 OK (Trả về trạng thái Payment đã lưu, không tạo giao dịch lặp)
+    UI --> Customer: Hiển thị kết quả đơn hàng tương ứng
+else Idempotency-Key mới (Giao dịch lần đầu)
+    API -> DB: INSERT INTO payments (order_id, idempotency_key, method, amount, status='PENDING')
+    activate DB
+    DB --> API: paymentId
+    deactivate DB
+
+    API -> PaySvc: charge({ paymentId, orderId, amount, method })
+    activate PaySvc
+
+    alt Thanh toán Thành công
+        PaySvc --> API: { success: true, transactionRef: "TXN_2026_OK" }
+        API -> DB: BEGIN TRANSACTION
+        activate DB
+        API -> DB: UPDATE payments SET status='PAID', transaction_ref='TXN_2026_OK', paid_at=NOW()
+        API -> DB: UPDATE orders SET status='CONFIRMED' WHERE id = orderId
+        API -> DB: COMMIT TRANSACTION
+        deactivate DB
+        API --> UI: 200 OK { orderId, orderStatus: "CONFIRMED", paymentStatus: "PAID" }
+        UI --> Customer: Hiển thị xác nhận đơn hàng thành công & Mã đơn hàng
+    else Thanh toán Thất bại
+        PaySvc --> API: { success: false, errorCode: "PAYMENT_DECLINED" }
+        deactivate PaySvc
+        API -> DB: BEGIN TRANSACTION
+        activate DB
+        API -> DB: UPDATE payments SET status='FAILED' WHERE id = paymentId
+        API -> DB: UPDATE orders SET status='PAYMENT_FAILED' WHERE id = orderId
+        API -> DB: UPDATE products SET stock_quantity = stock_quantity + quantity (Hoàn tồn kho)
+        API -> DB: COMMIT TRANSACTION
+        deactivate DB
+        API --> UI: 402 Payment Required { orderId, orderStatus: "PAYMENT_FAILED", paymentStatus: "FAILED" }
+        UI --> Customer: Thông báo thanh toán thất bại & Cho phép thanh toán lại
+    end
+end
+
+deactivate API
+deactivate UI
+@enduml

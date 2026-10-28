@@ -1,0 +1,51 @@
+@startuml activity-menu-cart
+title BrewLite - Activity Diagram: Luồng Xem Menu, Chọn Tùy Chọn & Giỏ Hàng
+|Customer|
+start
+:Mở trang chủ Menu (/);
+|Next.js UI|
+:Hiển thị Skeleton UI (Loading State);
+:Gửi request GET /products;
+|NestJS API|
+:Đọc danh sách sản phẩm từ PostgreSQL;
+if (Truy vấn DB thành công?) then (Lỗi Server)
+  :Trả về HTTP 500;
+  |Next.js UI|
+  :Hiển thị Error State & nút "Thử lại";
+  stop
+else (Thành công)
+  :Trả về HTTP 200 kèm danh sách Products;
+endif
+|Next.js UI|
+if (Danh sách Products rỗng?) then (Rỗng)
+  :Hiển thị Empty State ("Hiện chưa có đồ uống nào");
+  stop
+else (Có sản phẩm)
+  :Hiển thị danh sách món theo danh mục;
+endif
+|Customer|
+:Chọn xem chi tiết 1 món;
+|Next.js UI|
+:Gửi request GET /products/:id;
+|NestJS API|
+:Trả về chi tiết món (basePrice, sizeOptions, toppingOptions, stockQuantity);
+|Next.js UI|
+if (stockQuantity <= 0 hoặc !isAvailable?) then (Hết hàng)
+  :Hiển thị nhãn "Tạm hết hàng" & Vô hiệu hóa nút Thêm vào giỏ;
+  stop
+else (Còn hàng)
+  |Customer|
+  :Chọn Size (S/M/L), Topping & Số lượng;
+  |Next.js UI|
+  if (Số lượng chọn > stockQuantity?) then (Vượt tồn kho)
+    :Giới hạn số lượng tối đa = stockQuantity & Cảnh báo người dùng;
+  else (Hợp lệ)
+  endif
+  :Tính đơn giá = (basePrice + giá Size + tổng giá Topping) * số lượng;
+  |Customer|
+  :Nhấn "Thêm vào giỏ hàng";
+  |Next.js UI|
+  :Lưu món vào Cart Store (LocalStorage) & Cập nhật tổng tiền;
+endif
+stop
+@enduml

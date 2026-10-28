@@ -1,0 +1,38 @@
+@startuml usecase-overall
+left to right direction
+skinparam packageStyle rectangle
+title BrewLite - Overall System Use-Case Diagram (Task 1.2)
+
+actor "Khách hàng\n(Customer)" as Customer
+actor "Nhân viên quầy\n(Barista / Staff)" as Staff
+actor "Quản lý cửa hàng\n(Store Manager)" as Manager
+actor "Cổng thanh toán\n(Payment Service)" as PaymentGateway
+
+rectangle "Hệ thống Đặt đồ uống BrewLite (PWA & API)" {
+  usecase "UC-01: Xem danh sách Menu & Tìm kiếm" as UC01
+  usecase "UC-02: Xem chi tiết món & Chọn Size/Topping" as UC02
+  usecase "UC-03: Quản lý Giỏ hàng & Tính tạm tính" as UC03
+  usecase "UC-04: Đăng ký / Đăng nhập (JWT)" as UC04
+  usecase "UC-05: Đặt đơn & Thanh toán đơn hàng" as UC05
+  usecase "UC-06: Theo dõi trạng thái & Lịch sử đơn" as UC06
+  usecase "UC-07: Cập nhật trạng thái pha chế" as UC07
+  usecase "UC-08: Quản lý Menu & Tồn kho" as UC08
+  usecase "UC-09: Áp mã Khuyến mãi & Tích điểm\n(Out-of-MVP / Mở rộng)" as UC09
+}
+
+Customer --> UC01
+Customer --> UC02
+Customer --> UC03
+Customer --> UC04
+Customer --> UC05
+Customer --> UC06
+
+UC05 ..> UC04 : <<include>>
+UC05 ..> UC09 : <<extend>>
+UC05 --> PaymentGateway : Xử lý giao dịch Ví/Thẻ
+
+Staff --> UC04
+Staff --> UC07
+Manager --> UC04
+Manager --> UC08
+@enduml

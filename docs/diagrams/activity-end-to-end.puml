@@ -1,0 +1,123 @@
+@startuml activity-end-to-end
+title BrewLite - End-to-End Activity Diagram (Menu -> Cart -> Checkout -> Tracking)
+skinparam ConditionEndStyle hline
+
+|Customer|
+start
+:Truy cập ứng dụng BrewLite (PWA);
+
+|Next.js UI|
+:Hiển thị trạng thái Loading;
+:Gọi API lấy danh sách Menu (GET /products);
+
+|NestJS API|
+:Truy vấn danh sách Product từ PostgreSQL;
+:Trả về danh sách Product;
+
+|Next.js UI|
+if (Danh sách rỗng hoặc lỗi mạng?) then (Có)
+  :Hiển thị trạng thái Empty / Error;
+  stop
+else (Không)
+  :Hiển thị danh sách Menu (Mobile-first);
+endif
+
+|Customer|
+:Chọn món đồ uống muốn mua;
+
+|Next.js UI|
+:Gọi API chi tiết món (GET /products/:id);
+
+|NestJS API|
+:Kiểm tra thông tin & tồn kho (stockQuantity);
+
+|Next.js UI|
+if (Còn hàng (stockQuantity > 0 & isAvailable)?) then (Hết hàng)
+  :Hiển thị nhãn "Tạm hết hàng" & Vô hiệu hóa nút Thêm;
+  stop
+else (Còn hàng)
+  |Customer|
+  :Chọn Size (S/M/L), Topping & Số lượng;
+  :Nhấn "Thêm vào giỏ hàng";
+  |Next.js UI|
+  :Cập nhật giỏ hàng & Tính tổng tiền tạm tính;
+endif
+
+|Customer|
+:Mở Giỏ hàng & Nhấn "Tiến hành Đặt đơn";
+
+|Next.js UI|
+if (Đã đăng nhập (Có JWT hợp lệ)?) then (Chưa đăng nhập)
+  :Chuyển hướng sang trang Đăng nhập (/login);
+  |Customer|
+  :Nhập Email & Mật khẩu;
+  |Next.js UI|
+  :Gửi POST /auth/login;
+  |NestJS API|
+  if (Thông tin hợp lệ?) then (Sai)
+    :Trả về 401 Unauthorized;
+    |Next.js UI|
+    :Hiển thị lỗi xác thực;
+    stop
+  else (Đúng)
+    :Trả về JWT Access Token;
+  endif
+else (Đã đăng nhập)
+endif
+
+|Next.js UI|
+:Hiển thị màn hình Checkout & Chọn phương thức (WALLET / CARD);
+
+|Customer|
+:Nhấn "Xác nhận & Thanh toán";
+
+|Next.js UI|
+:Sinh khóa UUID Idempotency-Key;
+:Gửi POST /orders kèm JWT & danh sách món;
+
+|NestJS API|
+:Kiểm tra JWT & Validate CreateOrderDto;
+:Bắt đầu Database Transaction;
+if (Kiểm tra lại stockQuantity trong DB đủ số lượng?) then (Hết hàng / Không đủ)
+  :Rollback Transaction;
+  :Trả về 409 Conflict (Out of Stock);
+  |Next.js UI|
+  :Thông báo món vừa hết hàng & Yêu cầu cập nhật giỏ;
+  stop
+else (Đủ tồn kho)
+  :Trừ tồn kho Product (stockQuantity);
+  :Tạo Order (status = PENDING) & các bản ghi OrderItem;
+  :Commit Transaction;
+endif
+
+|Next.js UI|
+:Gửi POST /payments (kèm orderId & Header Idempotency-Key);
+
+|NestJS API|
+if (Idempotency-Key đã tồn tại trong DB?) then (Đã tồn tại)
+  :Trả về kết quả Payment đã lưu trước đó;
+else (Chưa tồn tại)
+  :Tạo bản ghi Payment (status = PENDING);
+  |Payment Service|
+  :Thực hiện giao dịch thanh toán mô phỏng;
+  |NestJS API|
+  if (Kết quả thanh toán?) then (Thất bại)
+    :Cập nhật Payment (status = FAILED);
+    :Cập nhật Order (status = PAYMENT_FAILED);
+    :Hoàn lại tồn kho (stockQuantity) cho Product;
+    |Next.js UI|
+    :Hiển thị thông báo "Thanh toán thất bại" & Cho phép thử lại;
+    stop
+  else (Thành công)
+    :Cập nhật Payment (status = PAID);
+    :Cập nhật Order (status = CONFIRMED);
+  endif
+endif
+
+|Next.js UI|
+:Chuyển hướng tới màn hình Xác nhận & Theo dõi đơn (/orders);
+
+|Customer|
+:Theo dõi tiến trình đơn hàng (CONFIRMED -> PREPARING -> READY -> COMPLETED);
+stop
+@enduml

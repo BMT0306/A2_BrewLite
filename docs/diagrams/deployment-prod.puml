@@ -1,0 +1,59 @@
+@startuml deployment-prod
+title BrewLite - UML Deployment Diagram (Local, CI/CD & Production)
+
+node "Client Device (Mobile / Desktop)" as ClientNode {
+  artifact "Mobile Web Browser / PWA\n(Next.js Client + Service Worker)" as PWA
+}
+
+frame "Local Boundary (Developer Machine)" as LocalEnv {
+  node "Docker Compose (docker-compose.yml)" as LocalDocker {
+    component "web-local :3000" as LocalWeb
+    component "api-local :4000" as LocalApi
+    database "postgres-local :5432\n(Persistent Volume)" as LocalDB
+    LocalWeb --> LocalApi : HTTP :4000
+    LocalApi --> LocalDB : TCP :5432
+  }
+}
+
+frame "CI/CD Boundary (GitHub Actions)" as CIBoundary {
+  node "GitHub Runner (Ubuntu)" as Runner {
+    component "CI/CD Pipeline\n(Lint -> Test -> Build -> Deploy -> Smoke Test)" as Workflow
+    artifact "GitHub Secrets\n(DATABASE_URL, JWT_SECRET, DEPLOY_HOOK)" as Secrets
+  }
+  node "GitHub Container Registry (GHCR)" as GHCR {
+    artifact "ghcr.io/brewlite/web:sha" as ImgWeb
+    artifact "ghcr.io/brewlite/api:sha" as ImgApi
+  }
+  Workflow ..> Secrets : reads
+  Workflow --> GHCR : pushes Docker images (HTTPS :443)
+}
+
+frame "Production Boundary (Render / Railway Cloud)" as ProdBoundary {
+  node "Frontend Service / CDN" as WebNode {
+    component "Next.js Container (:3000)\n[ENV: NEXT_PUBLIC_API_URL]" as ProdWeb
+  }
+
+  node "Backend Application Container" as ApiNode {
+    component "NestJS API Container (:4000)\n[ENV: DATABASE_URL, JWT_SECRET]\n[Healthcheck: GET /health]" as ProdApi
+    component "Mock Payment Service\n(Internal Module)" as MockPay
+    artifact "Application Logs & Health Monitor" as AppLogs
+    ProdApi --> MockPay : internal call
+    ProdApi ..> AppLogs : writes stdout logs
+  }
+
+  node "Private Database Network (No Direct Public Access)" as DBNode {
+    database "Managed PostgreSQL 16 (:5432)" as ProdDB {
+      folder "Persistent Storage Volume" as ProdVol
+    }
+  }
+
+  GHCR --> WebNode : pulls image
+  GHCR --> ApiNode : pulls image & runs migration
+  ProdWeb --> ProdApi : HTTPS REST API (:443 -> :4000)
+  ProdApi --> ProdDB : Internal TLS Connection (:5432)
+}
+
+PWA --> ProdWeb : HTTPS (:443)
+PWA --> ProdApi : HTTPS REST API (:443)
+Workflow --> ProdApi : Smoke Test GET /health (HTTPS :443)
+@enduml

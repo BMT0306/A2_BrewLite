@@ -1,0 +1,44 @@
+@startuml activity-auth-order-tracking
+title BrewLite - Activity Diagram: Xác Thực, Đặt Đơn & Quản Lý Trạng Thái Đơn
+|Customer|
+start
+:Từ Giỏ hàng nhấn "Thanh toán";
+|Next.js UI|
+if (Kiểm tra JWT Token trong LocalStorage?) then (Không có / Hết hạn)
+  :Chuyển hướng tới /login?redirect=/checkout;
+  |Customer|
+  :Nhập thông tin Đăng nhập hoặc Đăng ký tài khoản mới;
+  |Next.js UI|
+  :Gọi POST /auth/login (hoặc POST /auth/register);
+  |NestJS API|
+  if (Xác thực hợp lệ?) then (Thất bại)
+    :Trả về 401/400;
+    |Next.js UI|
+    :Hiển thị thông báo lỗi trên form;
+    stop
+  else (Thành công)
+    :Trả về accessToken (JWT) & thông tin User;
+  endif
+  |Next.js UI|
+  :Lưu JWT & Quay lại trang /checkout;
+else (Token hợp lệ)
+endif
+|Customer|
+:Hoàn tất Đặt đơn & Thanh toán thành công;
+:Mở trang Lịch sử & Theo dõi đơn (/orders);
+|Next.js UI|
+:Gọi GET /orders (Kèm Bearer JWT);
+|NestJS API|
+:Trả về danh sách đơn hàng của Customer;
+|Barista / Staff|
+:Nhận đơn mới ở trạng thái CONFIRMED;
+:Gọi PATCH /orders/:id/status (status = PREPARING);
+|NestJS API|
+:Kiểm tra Role = STAFF/MANAGER & Cập nhật trạng thái;
+|Barista / Staff|
+:Pha chế xong -> Gọi PATCH /orders/:id/status (status = READY);
+:Giao nước cho khách -> Gọi PATCH /orders/:id/status (status = COMPLETED);
+|Customer|
+:Xem trạng thái đơn hoàn tất (COMPLETED) trên ứng dụng;
+stop
+@enduml
