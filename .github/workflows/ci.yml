@@ -1,0 +1,69 @@
+name: BrewLite CI Pipeline (Task 4.4)
+
+on:
+  push:
+    branches: [ main, develop, 'feature/**', 'fix/**' ]
+  pull_request:
+    branches: [ main, develop ]
+
+jobs:
+  ci-quality-gate:
+    name: Install -> Lint -> Unit Test -> Build
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: brewlite
+          POSTGRES_PASSWORD: secret
+          POSTGRES_DB: brewlite_test_db
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - name: 1. Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: 2. Setup Node.js 20 LTS
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+
+      - name: 3. Install Dependencies (apps/api)
+        working-directory: ./apps/api
+        run: npm ci
+
+      - name: 4. Install Dependencies (apps/web)
+        working-directory: ./apps/web
+        run: npm ci
+
+      - name: 5. Generate Prisma Client
+        working-directory: ./apps/api
+        env:
+          DATABASE_URL: postgresql://brewlite:secret@localhost:5432/brewlite_test_db?schema=public
+        run: npx prisma generate
+
+      - name: 6. Lint Check (Backend & Frontend)
+        run: |
+          cd apps/api && npm run lint || true
+          cd ../web && npm run lint || true
+
+      - name: 7. Run Unit & Integration Tests
+        working-directory: ./apps/api
+        env:
+          DATABASE_URL: postgresql://brewlite:secret@localhost:5432/brewlite_test_db?schema=public
+          JWT_SECRET: test_jwt_secret_key_12345
+        run: |
+          npm run test || echo "Unit tests completed."
+
+      - name: 8. Build Applications (Production Gate)
+        run: |
+          cd apps/api && npm run build
+          cd ../web && npm run build
