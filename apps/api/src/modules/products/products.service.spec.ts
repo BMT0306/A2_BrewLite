@@ -1,3 +1,10 @@
+/**
+ * @file products.service.spec.ts
+ * @description Unit Test kiểm thử logic nghiệp vụ danh mục sản phẩm (UNIT-T01)
+ * @author Thành viên Phụ 3 - QA & Traceability Lead
+ * @project BrewLite - Assignment 2 (Software Engineering)
+ */
+
 import { Test, TestingModule } from '@nestjs/testing';
 import { ProductsService } from './products.service';
 import { PrismaService } from '../../prisma/prisma.service';

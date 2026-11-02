@@ -1,5 +1,12 @@
 'use client';
 
+/**
+ * @file orders/page.tsx
+ * @description Màn hình Tra cứu Lịch sử Đơn hàng và Theo dõi Trạng thái Pha chế theo thời gian thực (UC-06)
+ * @author Thành viên Phụ 2 - Business Analyst 2 (SRS & Use-case Lead)
+ * @project BrewLite - Assignment 2 (Software Engineering)
+ */
+
 import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';

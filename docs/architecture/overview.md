@@ -9,7 +9,7 @@
 | **Mã thành viên** | **Chính 1** |
 | **Vai trò chuyên môn** | **System Architect & DevOps Lead** |
 | **Tài liệu phụ trách** | `docs/architecture/overview.md`, `docs/architecture/adr/001-monorepo.md`, `002-database-transaction.md`, `003-mock-payment-idempotency.md`, `docs/diagrams/sequence-checkout.puml` / `.svg`, `docs/diagrams/deployment-prod.puml` / `.svg`, `docs/deployment.md` |
-| **Phần code phụ trách** | Thiết lập cấu trúc Monorepo, cấu hình Docker Compose, thiết lập đường ống CI (`ci.yml`) và CD (`cd.yml`), endpoint `GET /health` |
+| **Phần code phụ trách** | Thiết lập cấu trúc Monorepo, cấu hình Docker Compose, thiết lập đường ống CI (`ci.yml`) và CD (`cd.yml`), scripts tự động hóa (`scripts/`) |
 | **Mục đích in ấn Tuần 9** | Xuất trình tài liệu thiết kế kiến trúc hệ thống, phân tích các quyết định kiến trúc (ADR) và mô hình triển khai thực tế |
 
 ---

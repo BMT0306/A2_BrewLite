@@ -9,7 +9,7 @@
 | **Mã thành viên** | **Phụ 1** |
 | **Vai trò chuyên môn** | **Business Analyst 1 (Bối cảnh, Stakeholder & Phạm vi)** |
 | **Tài liệu phụ trách** | `docs/requirements/context-and-scope.md` & Phụ lục Danh mục Menu & Dữ liệu mẫu (`seed.ts`) |
-| **Phần code phụ trách** | Chuẩn bị dữ liệu ban đầu cho `apps/api/prisma/seed.ts` và kiểm thử tính đúng đắn của dữ liệu mẫu |
+| **Phần code phụ trách** | Lập trình kịch bản nạp dữ liệu mẫu khởi tạo DB (`apps/api/prisma/seed.ts`) & Module API Danh mục Sản phẩm Menu (`apps/api/src/modules/products/`) |
 | **Mục đích in ấn Tuần 9** | Độc lập xuất trình chứng minh công tác khảo sát nghiệp vụ, phân tích stakeholder và xác lập giới hạn phạm vi |
 
 ---

@@ -9,7 +9,7 @@
 | **Mã thành viên** | **Phụ 3** |
 | **Vai trò chuyên môn** | **QA & Traceability Lead** |
 | **Tài liệu phụ trách** | `docs/requirements/use-case-checkout.md` & `docs/diagrams/usecase-checkout.puml` / `.svg` |
-| **Phần code phụ trách** | Thiết kế bộ kịch bản kiểm thử (Test Cases), viết Integration/E2E Tests (`tests/`) và kịch bản nghiệm thu demo |
+| **Phần code phụ trách** | Lập trình API Health Check giám sát hệ thống (`apps/api/src/modules/health/health.controller.ts`), Bộ kiểm thử tích hợp tự động (`tests/integration-checkout.spec.ts`) & Unit Tests (`*.spec.ts`) |
 | **Mục đích in ấn Tuần 9** | Xuất trình đặc tả ca sử dụng hạt nhân quan trọng nhất của hệ thống, làm căn cứ thẩm định thiết kế và kiểm thử tự động |
 
 ---

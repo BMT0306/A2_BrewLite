@@ -9,7 +9,7 @@
 | **Mã thành viên** | **Phụ 2** |
 | **Vai trò chuyên môn** | **Business Analyst 2 (Đặc tả SRS & Use-case Tổng quát)** |
 | **Tài liệu phụ trách** | `docs/requirements/srs.md` & `docs/diagrams/usecase-overall.puml` / `.svg` |
-| **Phần code phụ trách** | Thẩm định các tiêu chí chấp nhận (Acceptance Criteria) trên giao diện Web UI và API Backend |
+| **Phần code phụ trách** | Lập trình Màn hình Tra cứu Trạng thái & Lịch sử Đơn hàng (`apps/web/src/app/orders/page.tsx` - UC-06), Màn hình Đăng nhập / Đăng ký (`apps/web/src/app/login/page.tsx` - UC-04) |
 | **Mục đích in ấn Tuần 9** | Xuất trình tài liệu đặc tả toàn bộ yêu cầu chức năng (FR), phi chức năng (NFR) và sơ đồ Use-Case tổng thể |
 
 ---

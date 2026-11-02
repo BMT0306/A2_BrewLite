@@ -1,3 +1,10 @@
+/**
+ * @file payments.service.spec.ts
+ * @description Unit Test kiểm thử logic thanh toán và chống trùng lặp Idempotency (UNIT-T03)
+ * @author Thành viên Phụ 3 - QA & Traceability Lead
+ * @project BrewLite - Assignment 2 (Software Engineering)
+ */
+
 import { Test, TestingModule } from '@nestjs/testing';
 import { PaymentsService } from './payments.service';
 import { PrismaService } from '../../prisma/prisma.service';

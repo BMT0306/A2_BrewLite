@@ -6,12 +6,12 @@
 ### THÔNG TIN HỒ SƠ DỰ ÁN & PHÂN CÔNG 6 THÀNH VIÊN (CHẤM TIẾN ĐỘ TUẦN 9)
 | Mã TV | Họ và Tên | Vai trò Chuyên môn | File Tài Liệu & Sơ Đồ Phụ Trách (In Ấn Tuần 9) | Phần Code & Kiểm Thử Phụ Trách |
 | :---: | :--- | :--- | :--- | :--- |
-| **Chính 1** | Kỹ sư Trưởng | **System Architect & DevOps Lead** | 1. `docs/architecture/overview.md`<br>2. `docs/architecture/adr/001-monorepo.md`, `002-...`, `003-...`<br>3. `docs/diagrams/sequence-checkout.puml` & `.svg`<br>4. `docs/diagrams/deployment-prod.puml` & `.svg`<br>5. `docs/deployment.md` | Khung Monorepo, Docker Compose, `ci.yml`, `cd.yml`, `GET /health`. |
-| **Chính 2** | Kỹ sư Backend | **Backend & Database Lead** | 1. `docs/diagrams/class-domain.puml` & `.svg`<br>2. `docs/diagrams/activity-end-to-end.puml` & `.svg`<br>3. `docs/database-and-api-design.md` | `schema.prisma`, `OrdersModule`, `PaymentsModule` (Transaction & Idempotency). |
-| **Chính 3** | Kỹ sư Frontend | **Frontend & PWA Lead** | 1. `docs/diagrams/activity-menu-cart.puml` & `.svg`<br>2. `docs/diagrams/activity-auth-order-tracking.puml` & `.svg`<br>3. `docs/ui-ux-frontend-specification.md` | `apps/web` (Next.js Mobile-first UI, PWA manifest, Cart Store, Checkout UI). |
-| **Phụ 1** | Chuyên viên BA | **Business Analyst 1 (Scope & Data)** | 1. `docs/requirements/context-and-scope.md`<br>2. Phụ lục Danh mục Menu & Dữ liệu mẫu (`seed.ts` spec) | Chuẩn bị dữ liệu ban đầu cho `apps/api/prisma/seed.ts` & kiểm thử dữ liệu. |
-| **Phụ 2** | Chuyên viên BA | **Business Analyst 2 (SRS & Use-case)** | 1. `docs/requirements/srs.md`<br>2. `docs/diagrams/usecase-overall.puml` & `.svg` | Kiểm tra Acceptance Criteria trên UI/API. |
-| **Phụ 3** | Kỹ sư QA | **QA & Traceability Lead** | 1. `docs/requirements/use-case-checkout.md`<br>2. `docs/diagrams/usecase-checkout.puml` & `.svg`<br>3. `docs/traceability-matrix.md`<br>4. `README.md` | Viết Unit/Integration/E2E Tests (`tests/`) & kịch bản Demo. |
+| **Chính 1** | Kỹ sư Trưởng | **System Architect & DevOps Lead** | 1. `docs/architecture/overview.md`<br>2. `docs/architecture/adr/001-monorepo.md`, `002-...`, `003-...`<br>3. `docs/diagrams/sequence-checkout.puml` & `.svg`<br>4. `docs/diagrams/deployment-prod.puml` & `.svg`<br>5. `docs/deployment.md` | Khung Monorepo, Docker Compose, `ci.yml`, `cd.yml`, scripts tự động hóa (`scripts/`). |
+| **Chính 2** | Kỹ sư Backend | **Backend & Database Lead** | 1. `docs/diagrams/class-domain.puml` & `.svg`<br>2. `docs/diagrams/activity-end-to-end.puml` & `.svg`<br>3. `docs/database-and-api-design.md` | Lược đồ `schema.prisma`, `OrdersModule`, `PaymentsModule` (Transaction & Idempotency), `AuthModule`. |
+| **Chính 3** | Kỹ sư Frontend | **Frontend & PWA Lead** | 1. `docs/diagrams/activity-menu-cart.puml` & `.svg`<br>2. `docs/diagrams/activity-auth-order-tracking.puml` & `.svg`<br>3. `docs/ui-ux-frontend-specification.md` | Khung PWA (`manifest.json`, `layout.tsx`), Trang chủ Menu (`page.tsx`), Tùy biến món (`products/[id]/page.tsx`), Giỏ hàng & Thanh toán (`cart/page.tsx`, `checkout/page.tsx`, `useCartStore.ts`). |
+| **Phụ 1** | Chuyên viên BA | **Business Analyst 1 (Scope & Data)** | 1. `docs/requirements/context-and-scope.md`<br>2. Phụ lục Danh mục Menu & Dữ liệu mẫu (`seed.ts` spec) | Lập trình kịch bản nạp dữ liệu mẫu (`apps/api/prisma/seed.ts`), Module API Danh mục Sản phẩm Menu (`apps/api/src/modules/products/`). |
+| **Phụ 2** | Chuyên viên BA | **Business Analyst 2 (SRS & Use-case)** | 1. `docs/requirements/srs.md`<br>2. `docs/diagrams/usecase-overall.puml` & `.svg` | Lập trình Màn hình Tra cứu Trạng thái & Lịch sử Đơn hàng (`apps/web/src/app/orders/page.tsx` - UC-06), Màn hình Đăng nhập / Đăng ký (`apps/web/src/app/login/page.tsx` - UC-04). |
+| **Phụ 3** | Kỹ sư QA | **QA & Traceability Lead** | 1. `docs/requirements/use-case-checkout.md`<br>2. `docs/diagrams/usecase-checkout.puml` & `.svg`<br>3. `docs/traceability-matrix.md`<br>4. `README.md` | Lập trình API Health Check (`apps/api/src/modules/health/health.controller.ts`), Bộ kiểm thử tích hợp tự động (`tests/integration-checkout.spec.ts`), Unit Tests (`products.service.spec.ts`, `payments.service.spec.ts`). |
 
 ---
 
@@ -34,19 +34,30 @@ Dự án được triển khai với tính kỷ luật công nghệ phần mềm
 brewlite/
 ├── apps/
 │   ├── web/                                   # Next.js 14+ (App Router, TailwindCSS, Mobile-first PWA)
-│   │   ├── public/manifest.json               # Cấu hình PWA cài đặt ra màn hình chính
-│   │   ├── src/app/                           # Màn hình Menu (/), Products, Cart, Login, Checkout, Orders
-│   │   ├── src/store/useCartStore.ts          # Zustand / LocalStorage Cart Management
-│   │   ├── Dockerfile
+│   │   ├── public/manifest.json               # Cấu hình PWA cài đặt ra màn hình chính (Chính 3)
+│   │   ├── src/app/
+│   │   │   ├── page.tsx                       # Màn hình danh mục món Menu (Chính 3)
+│   │   │   ├── products/[id]/page.tsx         # Chi tiết & Tùy biến món (Chính 3)
+│   │   │   ├── cart/page.tsx                  # Quản lý giỏ hàng (Chính 3)
+│   │   │   ├── checkout/page.tsx              # Luồng thanh toán đơn hàng (Chính 3)
+│   │   │   ├── login/page.tsx                 # Màn hình Đăng nhập / Profile (Phụ 2)
+│   │   │   └── orders/page.tsx                # Màn hình Tra cứu đơn & Trạng thái pha chế (Phụ 2)
+│   │   ├── src/store/useCartStore.ts          # Zustand / LocalStorage Cart Management (Chính 3)
+│   │   ├── Dockerfile                         # Đóng gói Docker Frontend (Chính 1)
 │   │   └── package.json
 │   └── api/                                   # NestJS Backend theo Module/Domain
 │       ├── prisma/
-│       │   ├── schema.prisma                  # 7 Models + 5 Enums khớp 100% Class Diagram
-│       │   └── seed.ts                        # Dữ liệu mẫu (Accounts, Products, Voucher)
-│       ├── src/modules/                       # Health, Auth, Products, Orders, Payments
-│       ├── Dockerfile
+│       │   ├── schema.prisma                  # 7 Models + 5 Enums khớp 100% Class Diagram (Chính 2)
+│       │   └── seed.ts                        # Kịch bản nạp dữ liệu mẫu khởi tạo DB (Phụ 1)
+│       ├── src/modules/
+│       │   ├── health/                        # API Health Check giám sát hệ thống (Phụ 3)
+│       │   ├── products/                      # API Danh mục Sản phẩm Menu (Phụ 1)
+│       │   ├── auth/                          # Xác thực JWT & Phân quyền (Chính 2)
+│       │   ├── orders/                        # Xử lý Đơn hàng & Transaction trừ tồn kho (Chính 2)
+│       │   └── payments/                      # Cổng thanh toán & Khóa Idempotency (Chính 2)
+│       ├── Dockerfile                         # Đóng gói Docker Backend (Chính 1)
 │       └── package.json
-├── docs/
+├── docs/                                      # Tài liệu & Diagram-as-Code phân công 6 thành viên
 │   ├── requirements/                          # Task 1 (Context, SRS, Use-case Checkout)
 │   ├── diagrams/                              # Task 2 (8 file .puml & 8 file .svg)
 │   ├── architecture/                          # Task 3 (Overview & 3 bản ghi ADR)
@@ -54,14 +65,14 @@ brewlite/
 │   ├── ui-ux-frontend-specification.md        # Task 3 (Hồ sơ Chính 3)
 │   ├── traceability-matrix.md                 # Task 5 (Ma trận truy vết hai chiều)
 │   └── deployment.md                          # Task 5 (Hướng dẫn vận hành & Biên bản 2 Sprint)
-├── scripts/
+├── scripts/                                   # Tự động hóa render diagram & sequential git (Chính 1)
 │   ├── render-diagrams.mjs                    # Xuất tự động .puml sang .svg
 │   └── git-sequential-commits.sh              # Ghi nhận lịch sử Git 5 mốc tuần tự
-├── tests/                                     # Bộ kiểm thử tích hợp và E2E
-├── .github/workflows/
+├── tests/                                     # Bộ kiểm thử tích hợp E2E & Unit Tests (Phụ 3)
+├── .github/workflows/                         # CI/CD Pipelines (Chính 1)
 │   ├── ci.yml                                 # CI Pipeline (Install -> Lint -> Test -> Build)
 │   └── cd.yml                                 # CD Pipeline (Quality Gate -> Docker -> GHCR -> Smoke Test)
-├── docker-compose.yml                         # Cụm Docker hoàn chỉnh (Postgres, API, Web)
+├── docker-compose.yml                         # Cụm Docker hoàn chỉnh (Chính 1)
 ├── .env.example
 ├── .gitignore
 └── README.md

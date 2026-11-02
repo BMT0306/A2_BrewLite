@@ -1,3 +1,10 @@
+/**
+ * @file products.service.ts
+ * @description Xử lý nghiệp vụ truy vấn danh mục sản phẩm đồ uống và chi tiết món
+ * @author Thành viên Phụ 1 - Business Analyst 1 (Scope & Data Lead)
+ * @project BrewLite - Assignment 2 (Software Engineering)
+ */
+
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 

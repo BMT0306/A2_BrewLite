@@ -1,5 +1,12 @@
 'use client';
 
+/**
+ * @file login/page.tsx
+ * @description Màn hình Đăng nhập, Đăng ký tài khoản và Quản lý Hồ sơ thành viên (UC-04)
+ * @author Thành viên Phụ 2 - Business Analyst 2 (SRS & Use-case Lead)
+ * @project BrewLite - Assignment 2 (Software Engineering)
+ */
+
 import React, { useState, useEffect } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { LogIn, UserPlus, LogOut, ShieldCheck, User } from 'lucide-react';

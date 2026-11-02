@@ -1,3 +1,10 @@
+/**
+ * @file seed.ts
+ * @description Kịch bản nạp dữ liệu mẫu khởi tạo cơ sở dữ liệu BrewLite (Users, Products, Promotions, Sample Orders)
+ * @author Thành viên Phụ 1 - Business Analyst 1 (Scope & Data Lead)
+ * @project BrewLite - Assignment 2 (Software Engineering)
+ */
+
 import { PrismaClient, UserRole, OrderStatus, PaymentMethod, PaymentStatus } from '@prisma/client';
 import * as bcrypt from 'bcrypt';
 

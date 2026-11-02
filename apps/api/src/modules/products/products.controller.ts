@@ -1,3 +1,10 @@
+/**
+ * @file products.controller.ts
+ * @description API Controller tiếp nhận request danh mục món và tìm kiếm sản phẩm
+ * @author Thành viên Phụ 1 - Business Analyst 1 (Scope & Data Lead)
+ * @project BrewLite - Assignment 2 (Software Engineering)
+ */
+
 import { Controller, GET, Param, Query } from '@nestjs/common';
 import { ProductsService } from './products.service';
 

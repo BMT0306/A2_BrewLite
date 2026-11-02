@@ -9,7 +9,7 @@
 | **Mã thành viên** | **Phụ 3** |
 | **Vai trò chuyên môn** | **QA & Traceability Lead** |
 | **Tài liệu phụ trách** | `docs/traceability-matrix.md`, `docs/requirements/use-case-checkout.md`, `README.md` |
-| **Phần code phụ trách** | Xây dựng bộ kịch bản kiểm thử (Test Cases), viết Integration/E2E Tests (`tests/`) và kịch bản nghiệm thu |
+| **Phần code phụ trách** | Lập trình API Health Check (`apps/api/src/modules/health/health.controller.ts`), Bộ kiểm thử tích hợp tự động (`tests/integration-checkout.spec.ts`) & Unit Tests (`*.spec.ts`) |
 | **Mục đích in ấn Tuần 9** | Xuất trình ma trận liên kết chứng minh mọi yêu cầu đều được mô hình hóa, lập trình và kiểm thử đầy đủ |
 
 ---

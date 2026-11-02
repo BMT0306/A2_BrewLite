@@ -9,7 +9,7 @@
 | **Mã thành viên** | **Chính 3** |
 | **Vai trò chuyên môn** | **Frontend & PWA Lead** |
 | **Tài liệu phụ trách** | `docs/ui-ux-frontend-specification.md`, `docs/diagrams/activity-menu-cart.puml` / `.svg`, `docs/diagrams/activity-auth-order-tracking.puml` / `.svg` |
-| **Phần code phụ trách** | Toàn bộ ứng dụng `apps/web` (Next.js Mobile-first UI, PWA manifest, Giỏ hàng `useCartStore`, Giao diện Đặt hàng & Thanh toán) |
+| **Phần code phụ trách** | Khung PWA (`manifest.json`, `layout.tsx`), Trang chủ Menu (`page.tsx`), Tùy biến món (`products/[id]/page.tsx`), Giỏ hàng & Thanh toán (`cart/page.tsx`, `checkout/page.tsx`, `useCartStore.ts`) |
 | **Mục đích in ấn Tuần 9** | Xuất trình tài liệu thiết kế giao diện di động, cấu trúc thành phần (Component Hierarchy) và xử lý trạng thái người dùng |
 
 ---

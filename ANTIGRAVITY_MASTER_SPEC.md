@@ -1,4 +1,4 @@
-﻿# MASTER SPECIFICATION: DỰ ÁN BREWLITE – ASSIGNMENT 2 (REQUIREMENTS TO DEPLOYMENT)
+# MASTER SPECIFICATION: DỰ ÁN BREWLITE – ASSIGNMENT 2 (REQUIREMENTS TO DEPLOYMENT)
 
 Bạn là một Principal Software Engineer & Solution Architect. Nhiệm vụ của bạn là khởi tạo, viết tài liệu, dựng sơ đồ, lập trình MVP và thiết lập CI/CD hoàn chỉnh cho dự án **BrewLite – Assignment 2**[cite: 1].
 
@@ -109,12 +109,12 @@ Mỗi tài liệu được sinh ra phải đính kèm bảng Metadata ở đầu
 
 | Mã TV | Vai trò | File Tài Liệu & Sơ Đồ Cá Nhân Tự Ghi & Tự Photo (Tuần 9) | Phần Code Phụ Trách |
 | :--- | :--- | :--- | :--- |
-| **Chính 1** | **System Architect & DevOps Lead** | 1. `docs/architecture/overview.md`<br>2. `docs/architecture/adr/001-monorepo.md`, `002-...`, `003-...`<br>3. `docs/diagrams/sequence-checkout.puml` & `.svg`<br>4. `docs/diagrams/deployment-prod.puml` & `.svg`<br>5. `docs/deployment.md` | Khung Monorepo, Docker, `ci.yml`, `cd.yml`, `GET /health`. |
-| **Chính 2** | **Backend & Database Lead** | 1. `docs/diagrams/class-domain.puml` & `.svg`<br>2. `docs/diagrams/activity-end-to-end.puml` & `.svg`<br>3. `docs/database-and-api-design.md` | `schema.prisma`, `OrdersModule`, `PaymentsModule` (Transaction & Idempotency). |
-| **Chính 3** | **Frontend & PWA Lead** | 1. `docs/diagrams/activity-menu-cart.puml` & `.svg`<br>2. `docs/diagrams/activity-auth-order-tracking.puml` & `.svg`<br>3. `docs/ui-ux-frontend-specification.md` | `apps/web` (Next.js Mobile-first UI, PWA manifest, Cart Store, Checkout UI). |
-| **Phụ 1** | **Business Analyst 1 (Scope & Data)** | 1. `docs/requirements/context-and-scope.md`<br>2. Phụ lục Danh mục Menu & Dữ liệu mẫu (`seed.ts` spec) | Chuẩn bị dữ liệu `apps/api/prisma/seed.ts` & kiểm thử dữ liệu. |
-| **Phụ 2** | **Business Analyst 2 (SRS & Use-case)** | 1. `docs/requirements/srs.md`<br>2. `docs/diagrams/usecase-overall.puml` & `.svg` | Kiểm tra Acceptance Criteria trên UI/API. |
-| **Phụ 3** | **QA & Traceability Lead** | 1. `docs/requirements/use-case-checkout.md`<br>2. `docs/diagrams/usecase-checkout.puml` & `.svg`<br>3. `docs/traceability-matrix.md`<br>4. `README.md` | Viết Unit/Integration/E2E Test (`tests/`) & kịch bản Demo. |
+| **Chính 1** | **System Architect & DevOps Lead** | 1. `docs/architecture/overview.md`<br>2. `docs/architecture/adr/001-monorepo.md`, `002-...`, `003-...`<br>3. `docs/diagrams/sequence-checkout.puml` & `.svg`<br>4. `docs/diagrams/deployment-prod.puml` & `.svg`<br>5. `docs/deployment.md` | Khung Monorepo, Docker Compose, `ci.yml`, `cd.yml`, scripts tự động hóa (`scripts/`). |
+| **Chính 2** | **Backend & Database Lead** | 1. `docs/diagrams/class-domain.puml` & `.svg`<br>2. `docs/diagrams/activity-end-to-end.puml` & `.svg`<br>3. `docs/database-and-api-design.md` | Lược đồ `schema.prisma`, `OrdersModule`, `PaymentsModule` (Transaction & Idempotency), `AuthModule`. |
+| **Chính 3** | **Frontend & PWA Lead** | 1. `docs/diagrams/activity-menu-cart.puml` & `.svg`<br>2. `docs/diagrams/activity-auth-order-tracking.puml` & `.svg`<br>3. `docs/ui-ux-frontend-specification.md` | Khung PWA (`manifest.json`, `layout.tsx`), Trang chủ Menu (`page.tsx`), Tùy biến món (`products/[id]/page.tsx`), Giỏ hàng & Thanh toán (`cart/page.tsx`, `checkout/page.tsx`, `useCartStore.ts`). |
+| **Phụ 1** | **Business Analyst 1 (Scope & Data)** | 1. `docs/requirements/context-and-scope.md`<br>2. Phụ lục Danh mục Menu & Dữ liệu mẫu (`seed.ts` spec) | Lập trình kịch bản nạp dữ liệu mẫu (`apps/api/prisma/seed.ts`), Module API Danh mục Sản phẩm Menu (`apps/api/src/modules/products/`). |
+| **Phụ 2** | **Business Analyst 2 (SRS & Use-case)** | 1. `docs/requirements/srs.md`<br>2. `docs/diagrams/usecase-overall.puml` & `.svg` | Lập trình Màn hình Tra cứu Trạng thái & Lịch sử Đơn hàng (`apps/web/src/app/orders/page.tsx` - UC-06), Màn hình Đăng nhập / Đăng ký (`apps/web/src/app/login/page.tsx` - UC-04). |
+| **Phụ 3** | **QA & Traceability Lead** | 1. `docs/requirements/use-case-checkout.md`<br>2. `docs/diagrams/usecase-checkout.puml` & `.svg`<br>3. `docs/traceability-matrix.md`<br>4. `README.md` | Lập trình API Health Check (`apps/api/src/modules/health/health.controller.ts`), Bộ kiểm thử tích hợp tự động (`tests/integration-checkout.spec.ts`), Unit Tests (`products.service.spec.ts`, `payments.service.spec.ts`). |
 
 ---
 

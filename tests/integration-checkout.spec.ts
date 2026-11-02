@@ -1,6 +1,9 @@
 /**
- * Integration Test: Full Order Placement & Idempotent Payment Flow
- * Corresponds to: INT-T01, INT-T02, INT-T03, INT-T04 in docs/traceability-matrix.md
+ * @file integration-checkout.spec.ts
+ * @description Bộ kiểm thử tích hợp tự động cho luồng Đặt hàng và Thanh toán chống trùng lặp (INT-T01 - INT-T04)
+ * @author Thành viên Phụ 3 - QA & Traceability Lead
+ * @project BrewLite - Assignment 2 (Software Engineering)
+ * @see docs/traceability-matrix.md
  */
 
 describe('BrewLite Checkout & Idempotency Integration Suite', () => {
