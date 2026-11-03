@@ -130,15 +130,16 @@ export class PaymentsService {
       });
 
       // Tích lũy Loyalty Points (Mỗi 10.000 VNĐ = 1 điểm thưởng)
-      if (order.userId && tx.loyaltyTransaction && tx.user) {
+      const txAny = tx as any;
+      if (order.userId && txAny.loyaltyTransaction && txAny.user) {
         const pointsEarned = Math.floor(Number(order.totalAmount) / 10000);
         if (pointsEarned > 0) {
-          await tx.user.update({
+          await txAny.user.update({
             where: { id: order.userId },
             data: { loyaltyPoints: { increment: pointsEarned } },
           });
 
-          await tx.loyaltyTransaction.create({
+          await txAny.loyaltyTransaction.create({
             data: {
               userId: order.userId,
               orderId: order.id,
