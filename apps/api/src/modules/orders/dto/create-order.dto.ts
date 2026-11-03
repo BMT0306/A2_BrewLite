@@ -1,3 +1,10 @@
+/**
+ * @file create-order.dto.ts
+ * @description Data Transfer Object định nghĩa payload tạo đơn hàng mới
+ * @author Thành viên Chính 2 - Backend & Database Lead
+ * @project BrewLite - Assignment 2 (Software Engineering)
+ */
+
 import { Type } from 'class-transformer';
 import { ArrayMinSize, IsArray, IsNotEmpty, IsNumber, IsOptional, IsString, Min, ValidateNested } from 'class-validator';
 

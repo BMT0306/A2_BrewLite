@@ -1,10 +1,17 @@
+/**
+ * @file payments.controller.ts
+ * @description API Controller xử lý thanh toán không tiền mặt và chống trùng lặp Idempotency
+ * @author Thành viên Chính 2 - Backend & Database Lead
+ * @project BrewLite - Assignment 2 (Software Engineering)
+ */
+
 import {
   Body,
   Controller,
   Headers,
   HttpCode,
   HttpStatus,
-  POST,
+  Post,
   UseGuards,
 } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
@@ -16,7 +23,7 @@ import { ProcessPaymentDto } from './dto/process-payment.dto';
 export class PaymentsController {
   constructor(private readonly paymentsService: PaymentsService) {}
 
-  @POST()
+  @Post()
   @HttpCode(HttpStatus.OK)
   async processPayment(
     @Headers('idempotency-key') idempotencyKey: string,

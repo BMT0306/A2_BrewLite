@@ -1,3 +1,10 @@
+/**
+ * @file jwt.strategy.ts
+ * @description Chiến lược Passport JWT trích xuất và giải mã Token từ Authorization Header
+ * @author Thành viên Chính 2 - Backend & Database Lead
+ * @project BrewLite - Assignment 2 (Software Engineering)
+ */
+
 import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { PassportStrategy } from '@nestjs/passport';
 import { ExtractJwt, Strategy } from 'passport-jwt';

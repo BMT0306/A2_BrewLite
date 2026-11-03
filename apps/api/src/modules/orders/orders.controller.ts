@@ -1,12 +1,19 @@
+/**
+ * @file orders.controller.ts
+ * @description API Controller xử lý đặt hàng, tra cứu lịch sử và cập nhật trạng thái đơn hàng
+ * @author Thành viên Chính 2 - Backend & Database Lead
+ * @project BrewLite - Assignment 2 (Software Engineering)
+ */
+
 import {
   Body,
   Controller,
-  GET,
+  Get,
   HttpCode,
   HttpStatus,
   Param,
-  PATCH,
-  POST,
+  Patch,
+  Post,
   Request,
   UseGuards,
 } from '@nestjs/common';
@@ -20,23 +27,23 @@ import { UpdateOrderStatusDto } from './dto/update-order-status.dto';
 export class OrdersController {
   constructor(private readonly ordersService: OrdersService) {}
 
-  @POST()
+  @Post()
   @HttpCode(HttpStatus.CREATED)
   async create(@Request() req: any, @Body() dto: CreateOrderDto) {
     return this.ordersService.create(req.user.id, dto);
   }
 
-  @GET()
+  @Get()
   async findAll(@Request() req: any) {
     return this.ordersService.findUserOrders(req.user.id, req.user.role);
   }
 
-  @GET(':id')
+  @Get(':id')
   async findOne(@Param('id') id: string) {
     return this.ordersService.findOne(id);
   }
 
-  @PATCH(':id/status')
+  @Patch(':id/status')
   async updateStatus(
     @Param('id') id: string,
     @Body() dto: UpdateOrderStatusDto,

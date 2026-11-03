@@ -1,5 +1,5 @@
 @startuml class-domain
-title BrewLite - Domain Class Diagram (Task 2.3)
+title BrewLite - Domain Class Diagram (Task 2.3 - Phụ trách: Chính 2)
 skinparam classAttributeIconSize 0
 
 enum UserRole {

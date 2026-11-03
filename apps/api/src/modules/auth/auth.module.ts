@@ -1,3 +1,10 @@
+/**
+ * @file auth.module.ts
+ * @description Module cấu hình xác thực Passport JWT và AuthService
+ * @author Thành viên Chính 2 - Backend & Database Lead
+ * @project BrewLite - Assignment 2 (Software Engineering)
+ */
+
 import { Module } from '@nestjs/common';
 import { JwtModule } from '@nestjs/jwt';
 import { PassportModule } from '@nestjs/passport';

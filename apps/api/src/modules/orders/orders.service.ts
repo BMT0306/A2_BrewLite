@@ -1,3 +1,10 @@
+/**
+ * @file orders.service.ts
+ * @description Xử lý nghiệp vụ đặt hàng nguyên tử trong Database Transaction và trừ tồn kho (FR-05, UC-05)
+ * @author Thành viên Chính 2 - Backend & Database Lead
+ * @project BrewLite - Assignment 2 (Software Engineering)
+ */
+
 import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
 import { OrderStatus, Prisma } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
@@ -9,11 +16,11 @@ export class OrdersService {
   constructor(private readonly prisma: PrismaService) {}
 
   async create(userId: string, dto: CreateOrderDto) {
-    // Execute atomic creation within Prisma Interactive Transaction
+    // Thực thi tạo đơn hàng nguyên tử bên trong Prisma Interactive Transaction
     return this.prisma.$transaction(async (tx) => {
       let subtotal = new Prisma.Decimal(0);
 
-      // 1. Verify and decrement stock atomically
+      // 1. Kiểm tra tồn kho và trừ kho nguyên tử
       for (const item of dto.items) {
         const product = await tx.product.findUnique({
           where: { id: item.productId },
@@ -29,11 +36,11 @@ export class OrdersService {
           );
         }
 
-        // Deduct inventory
+        // Trừ tồn kho nguyên tử cấp cơ sở dữ liệu
         await tx.product.update({
           where: { id: item.productId },
           data: {
-            stockQuantity: product.stockQuantity - item.quantity,
+            stockQuantity: { decrement: item.quantity },
           },
         });
 
@@ -41,7 +48,7 @@ export class OrdersService {
         subtotal = subtotal.add(lineTotal);
       }
 
-      // 2. Handle optional promotion voucher
+      // 2. Xử lý mã voucher khuyến mãi (nếu có)
       let discountAmount = new Prisma.Decimal(0);
       let promotionId: string | null = null;
       if (dto.promotionCode) {
@@ -61,7 +68,7 @@ export class OrdersService {
       const randomSuffix = Math.floor(1000 + Math.random() * 9000);
       const orderCode = `BL-${Date.now().toString().slice(-6)}-${randomSuffix}`;
 
-      // 3. Insert Order
+      // 3. Khởi tạo bản ghi Order kèm các OrderItems
       const order = await tx.order.create({
         data: {
           orderCode,
@@ -105,7 +112,7 @@ export class OrdersService {
 
   async findUserOrders(userId: string, role?: string) {
     const where: any = {};
-    // If not staff/manager, filter by own user id
+    // Khách hàng thông thường chỉ xem được đơn của chính mình; Staff và Manager có thể xem toàn bộ
     if (role !== 'STAFF' && role !== 'MANAGER') {
       where.userId = userId;
     }

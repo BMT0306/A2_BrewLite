@@ -1,3 +1,10 @@
+/**
+ * @file auth.service.ts
+ * @description Xử lý nghiệp vụ băm mật khẩu bcrypt, tạo tài khoản và sinh mã xác thực JWT
+ * @author Thành viên Chính 2 - Backend & Database Lead
+ * @project BrewLite - Assignment 2 (Software Engineering)
+ */
+
 import { ConflictException, Injectable, UnauthorizedException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcrypt';
