@@ -7,12 +7,12 @@
  * @project BrewLite - Assignment 2 (Software Engineering)
  */
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { LogIn, UserPlus, LogOut, ShieldCheck, User } from 'lucide-react';
 import { apiFetch, getStoredUser, setStoredToken, setStoredUser, removeStoredToken } from '../../lib/api';
 
-export default function LoginPage() {
+function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const redirectUrl = searchParams.get('redirect') || '/';
@@ -245,5 +245,13 @@ export default function LoginPage() {
         </button>
       </form>
     </div>
+  );
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense fallback={<div className="p-8 text-center text-xs text-slate-400">Đang tải...</div>}>
+      <LoginForm />
+    </Suspense>
   );
 }
