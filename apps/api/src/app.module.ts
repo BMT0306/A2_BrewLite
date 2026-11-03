@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { PrismaModule } from './prisma/prisma.module';
+import { AppController } from './app.controller';
 import { HealthModule } from './modules/health/health.module';
 import { AuthModule } from './modules/auth/auth.module';
 import { ProductsModule } from './modules/products/products.module';
@@ -15,5 +16,6 @@ import { PaymentsModule } from './modules/payments/payments.module';
     OrdersModule,
     PaymentsModule,
   ],
+  controllers: [AppController],
 })
 export class AppModule {}
