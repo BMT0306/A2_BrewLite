@@ -1,16 +1,26 @@
+/**
+ * @file page.tsx (Trang chủ Menu – "/")
+ * @description Xem danh sách đồ uống, lọc theo danh mục & tìm kiếm (FR-01).
+ *              Xử lý đủ 4 trạng thái: Loading / Error / Empty / Hết hàng.
+ * @author Thành viên Chính 3 - Frontend & PWA Lead
+ * @see docs/diagrams/activity-menu-cart.puml (Bước 1 → "Hiển thị danh sách món theo danh mục")
+ * @see docs/ui-ux-frontend-specification.md (Mục 3.1)
+ */
+
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { Search, AlertCircle, RefreshCw, Coffee, Plus } from 'lucide-react';
+import { Search, AlertCircle, RefreshCw, Coffee } from 'lucide-react';
 import { apiFetch } from '../lib/api';
+import { formatVND } from '../lib/format';
 
 interface Product {
   id: string;
   name: string;
   description: string;
   category: string;
-  basePrice: number | string;
+  basePrice: number;
   imageUrl: string;
   stockQuantity: number;
   isAvailable: boolean;
@@ -26,222 +36,142 @@ const CATEGORIES = [
 
 export default function MenuPage() {
   const [products, setProducts] = useState<Product[]>([]);
-  const [loading, setLoading] = useState<boolean>(true);
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [selectedCategory, setSelectedCategory] = useState<string>('All');
-  const [searchQuery, setSearchQuery] = useState<string>('');
+  const [category, setCategory] = useState('All');
+  const [keyword, setKeyword] = useState('');
 
-  const fetchProducts = async () => {
+  // Diagram: "Hiển thị Skeleton UI" → "Gửi request GET /products"
+  const loadProducts = async () => {
+    setLoading(true);
+    setError(null);
     try {
-      setLoading(true);
-      setError(null);
-      let url = '/products';
-      const params = new URLSearchParams();
-      if (selectedCategory !== 'All') params.append('category', selectedCategory);
-      if (searchQuery.trim()) params.append('search', searchQuery.trim());
-      if (params.toString()) url += `?${params.toString()}`;
-
-      const data = await apiFetch<Product[]>(url);
-      setProducts(data);
+      setProducts(await apiFetch<Product[]>('/products'));
     } catch (err: any) {
-      console.error('Fetch products error:', err);
-      setError(err.message || 'Không thể tải danh sách sản phẩm. Vui lòng kiểm tra kết nối API.');
+      setError(err.message || 'Không thể kết nối tới máy chủ.');
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
-    fetchProducts();
-  }, [selectedCategory]);
+    loadProducts();
+  }, []);
 
-  const handleSearchSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    fetchProducts();
-  };
-
-  const formatPrice = (price: number | string) => {
-    return Number(price).toLocaleString('vi-VN') + ' đ';
-  };
+  // Lọc tức thì phía client theo danh mục + từ khóa (không cần tải lại trang)
+  const visibleProducts = products.filter(
+    (p) =>
+      (category === 'All' || p.category === category) &&
+      p.name.toLowerCase().includes(keyword.trim().toLowerCase()),
+  );
 
   return (
     <div className="p-4 space-y-4">
-      {/* Banner / Promotion header */}
-      <div className="bg-gradient-to-r from-teal-800 to-teal-600 rounded-2xl p-4 text-white shadow-md">
-        <span className="text-[10px] bg-teal-900/60 text-teal-200 px-2 py-0.5 rounded-full uppercase tracking-wider font-semibold">
-          Ưu đãi hôm nay
-        </span>
-        <h2 className="text-lg font-bold mt-1">Giảm 10% với mã WELCOME10</h2>
-        <p className="text-xs text-teal-100 mt-0.5">Áp dụng cho mọi đồ uống khi đặt trên PWA BrewLite</p>
+      {/* Thanh tìm kiếm */}
+      <div className="relative">
+        <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+        <input
+          value={keyword}
+          onChange={(e) => setKeyword(e.target.value)}
+          placeholder="Tìm kiếm đồ uống..."
+          className="w-full bg-white border border-slate-200 rounded-xl pl-9 pr-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-teal-600"
+        />
       </div>
 
-      {/* Search Input Bar */}
-      <form onSubmit={handleSearchSubmit} className="relative">
-        <Search className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
-        <input
-          type="text"
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-          placeholder="Tìm kiếm đồ uống, cà phê, trà..."
-          className="w-full bg-slate-100 text-slate-800 placeholder-slate-400 text-xs rounded-xl pl-9 pr-20 py-2.5 focus:outline-none focus:ring-2 focus:ring-teal-600 border border-slate-200"
-        />
-        <button
-          type="submit"
-          className="absolute right-1.5 top-1/2 -translate-y-1/2 bg-teal-700 hover:bg-teal-800 text-white text-xs px-3 py-1.5 rounded-lg font-medium transition"
-        >
-          Tìm
-        </button>
-      </form>
-
-      {/* Category Tabs */}
-      <div className="flex space-x-2 overflow-x-auto pb-1 scrollbar-none">
-        {CATEGORIES.map((cat) => (
+      {/* Tab danh mục */}
+      <div className="flex gap-2 overflow-x-auto pb-1">
+        {CATEGORIES.map((c) => (
           <button
-            key={cat.id}
-            onClick={() => setSelectedCategory(cat.id)}
-            className={`text-xs px-3.5 py-1.5 rounded-full whitespace-nowrap transition-all font-medium ${
-              selectedCategory === cat.id
-                ? 'bg-teal-800 text-white shadow-sm'
-                : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+            key={c.id}
+            onClick={() => setCategory(c.id)}
+            className={`px-3.5 py-1.5 rounded-full text-xs font-medium whitespace-nowrap ${
+              category === c.id ? 'bg-teal-700 text-white' : 'bg-white text-slate-600 border border-slate-200'
             }`}
           >
-            {cat.label}
+            {c.label}
           </button>
         ))}
       </div>
 
-      {/* Content Rendering: 4 States */}
-
-      {/* 1. Loading State (Skeleton Cards) */}
-      {loading && (
+      {/* 4 trạng thái giao diện theo diagram */}
+      {loading ? (
+        <SkeletonGrid />
+      ) : error ? (
+        <ErrorState message={error} onRetry={loadProducts} />
+      ) : visibleProducts.length === 0 ? (
+        <EmptyState />
+      ) : (
         <div className="grid grid-cols-2 gap-3">
-          {[1, 2, 3, 4, 5, 6].map((i) => (
-            <div key={i} className="bg-white rounded-xl p-2.5 border border-slate-100 shadow-sm animate-pulse space-y-2">
-              <div className="w-full h-28 bg-slate-200 rounded-lg" />
-              <div className="h-3.5 bg-slate-200 rounded w-3/4" />
-              <div className="h-3 bg-slate-200 rounded w-1/2" />
-              <div className="flex justify-between items-center pt-1">
-                <div className="h-4 bg-slate-200 rounded w-1/3" />
-                <div className="w-6 h-6 bg-slate-200 rounded-full" />
-              </div>
-            </div>
+          {visibleProducts.map((p) => (
+            <ProductCard key={p.id} product={p} />
           ))}
         </div>
       )}
+    </div>
+  );
+}
 
-      {/* 2. Error State */}
-      {!loading && error && (
-        <div className="bg-rose-50 border border-rose-200 rounded-2xl p-5 text-center space-y-3">
-          <AlertCircle className="w-8 h-8 text-rose-500 mx-auto" />
-          <h3 className="text-sm font-bold text-rose-800">Không thể kết nối đến máy chủ</h3>
-          <p className="text-xs text-rose-600 leading-relaxed">{error}</p>
-          <button
-            onClick={fetchProducts}
-            className="inline-flex items-center space-x-1.5 bg-rose-600 hover:bg-rose-700 text-white text-xs px-4 py-2 rounded-xl font-medium shadow transition"
-          >
-            <RefreshCw className="w-3.5 h-3.5" />
-            <span>Thử lại</span>
-          </button>
-        </div>
+/* ---------- Các thành phần con ---------- */
+
+function ProductCard({ product }: { product: Product }) {
+  const isOutOfStock = product.stockQuantity <= 0 || !product.isAvailable;
+
+  return (
+    <Link
+      href={`/products/${product.id}`}
+      className={`relative bg-white rounded-xl overflow-hidden border border-slate-100 shadow-sm ${
+        isOutOfStock ? 'opacity-60 grayscale' : ''
+      }`}
+    >
+      {isOutOfStock && (
+        <span className="absolute top-2 left-2 bg-red-600 text-white text-[10px] font-bold px-2 py-0.5 rounded-full">
+          TẠM HẾT HÀNG
+        </span>
       )}
+      <img src={product.imageUrl} alt={product.name} className="w-full h-32 object-cover" loading="lazy" />
+      <div className="p-2.5">
+        <h3 className="text-sm font-bold text-slate-800 line-clamp-1">{product.name}</h3>
+        <p className="text-[11px] text-slate-500 line-clamp-2">{product.description}</p>
+        <p className="mt-1.5 text-sm font-extrabold text-teal-700">{formatVND(product.basePrice)}</p>
+      </div>
+    </Link>
+  );
+}
 
-      {/* 3. Empty State */}
-      {!loading && !error && products.length === 0 && (
-        <div className="bg-slate-50 border border-slate-200 rounded-2xl p-8 text-center space-y-2">
-          <Coffee className="w-10 h-10 text-slate-300 mx-auto" />
-          <h3 className="text-sm font-semibold text-slate-700">Chưa có đồ uống nào</h3>
-          <p className="text-xs text-slate-500">
-            Không tìm thấy sản phẩm phù hợp với bộ lọc hoặc từ khóa tìm kiếm của bạn.
-          </p>
-          <button
-            onClick={() => {
-              setSelectedCategory('All');
-              setSearchQuery('');
-            }}
-            className="text-xs text-teal-700 font-semibold hover:underline pt-2 block"
-          >
-            Đặt lại bộ lọc
-          </button>
+function SkeletonGrid() {
+  return (
+    <div className="grid grid-cols-2 gap-3">
+      {Array.from({ length: 6 }).map((_, i) => (
+        <div key={i} className="bg-white rounded-xl p-2.5 space-y-2 animate-pulse">
+          <div className="h-28 bg-slate-200 rounded-lg" />
+          <div className="h-3 bg-slate-200 rounded w-3/4" />
+          <div className="h-3 bg-slate-200 rounded w-1/2" />
         </div>
-      )}
+      ))}
+    </div>
+  );
+}
 
-      {/* 4. Products Grid with Out-of-Stock handling */}
-      {!loading && !error && products.length > 0 && (
-        <div className="grid grid-cols-2 gap-3">
-          {products.map((product) => {
-            const isOutOfStock = product.stockQuantity <= 0 || !product.isAvailable;
-            return (
-              <div
-                key={product.id}
-                className={`bg-white rounded-xl overflow-hidden border border-slate-100 shadow-sm flex flex-col transition relative ${
-                  isOutOfStock ? 'opacity-70 grayscale-[30%]' : 'hover:shadow-md'
-                }`}
-              >
-                {/* Out of stock badge */}
-                {isOutOfStock && (
-                  <div className="absolute top-2 left-2 z-10 bg-rose-600 text-white text-[10px] font-bold px-2 py-0.5 rounded-full shadow">
-                    TẠM HẾT HÀNG
-                  </div>
-                )}
+function ErrorState({ message, onRetry }: { message: string; onRetry: () => void }) {
+  return (
+    <div className="bg-red-50 border border-red-200 rounded-xl p-5 text-center space-y-3">
+      <AlertCircle className="w-8 h-8 text-red-500 mx-auto" />
+      <p className="text-sm text-red-700">{message}</p>
+      <button
+        onClick={onRetry}
+        className="inline-flex items-center gap-1.5 bg-red-600 text-white text-xs font-bold px-4 py-2 rounded-lg"
+      >
+        <RefreshCw className="w-3.5 h-3.5" /> Thử lại
+      </button>
+    </div>
+  );
+}
 
-                {/* Stock badge for available products */}
-                {!isOutOfStock && (
-                  <div className="absolute top-2 right-2 z-10 bg-black/60 backdrop-blur-sm text-white text-[10px] px-1.5 py-0.5 rounded font-mono">
-                    Còn: {product.stockQuantity}
-                  </div>
-                )}
-
-                {/* Product Image */}
-                <Link
-                  href={isOutOfStock ? '#' : `/products/${product.id}`}
-                  className="block relative w-full h-32 bg-slate-100 overflow-hidden"
-                >
-                  <img
-                    src={product.imageUrl}
-                    alt={product.name}
-                    className="w-full h-full object-cover transition-transform duration-300 hover:scale-105"
-                    loading="lazy"
-                  />
-                </Link>
-
-                {/* Info */}
-                <div className="p-2.5 flex-1 flex flex-col justify-between space-y-1.5">
-                  <div>
-                    <span className="text-[10px] text-teal-700 font-semibold uppercase tracking-wider block">
-                      {product.category}
-                    </span>
-                    <Link
-                      href={isOutOfStock ? '#' : `/products/${product.id}`}
-                      className="text-xs font-bold text-slate-800 line-clamp-1 hover:text-teal-700"
-                    >
-                      {product.name}
-                    </Link>
-                    <p className="text-[11px] text-slate-500 line-clamp-2 mt-0.5 leading-tight">
-                      {product.description}
-                    </p>
-                  </div>
-
-                  <div className="pt-2 flex items-center justify-between border-t border-slate-50">
-                    <span className="text-xs font-extrabold text-teal-800">
-                      {formatPrice(product.basePrice)}
-                    </span>
-                    {isOutOfStock ? (
-                      <span className="text-[10px] text-rose-500 font-medium">Hết hàng</span>
-                    ) : (
-                      <Link
-                        href={`/products/${product.id}`}
-                        className="w-7 h-7 bg-teal-700 hover:bg-teal-800 text-white rounded-full flex items-center justify-center shadow transition active:scale-90"
-                      >
-                        <Plus className="w-4 h-4" />
-                      </Link>
-                    )}
-                  </div>
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      )}
+function EmptyState() {
+  return (
+    <div className="bg-white border border-slate-200 rounded-xl p-8 text-center space-y-2">
+      <Coffee className="w-10 h-10 text-slate-300 mx-auto" />
+      <p className="text-sm text-slate-600">Chưa có đồ uống nào phù hợp với tìm kiếm của bạn</p>
     </div>
   );
 }

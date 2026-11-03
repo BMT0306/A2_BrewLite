@@ -34,15 +34,14 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 20
-          cache: 'npm'
 
       - name: 3. Install Dependencies (apps/api)
         working-directory: ./apps/api
-        run: npm ci
+        run: npm install --no-audit --no-fund
 
       - name: 4. Install Dependencies (apps/web)
         working-directory: ./apps/web
-        run: npm ci
+        run: npm install --no-audit --no-fund
 
       - name: 5. Generate Prisma Client
         working-directory: ./apps/api
@@ -52,8 +51,8 @@ jobs:
 
       - name: 6. Lint Check (Backend & Frontend)
         run: |
-          cd apps/api && npm run lint || true
-          cd ../web && npm run lint || true
+          cd $GITHUB_WORKSPACE/apps/api && npm run lint || true
+          cd $GITHUB_WORKSPACE/apps/web && npm run lint || true
 
       - name: 7. Run Unit & Integration Tests
         working-directory: ./apps/api
@@ -63,7 +62,10 @@ jobs:
         run: |
           npm run test || echo "Unit tests completed."
 
-      - name: 8. Build Applications (Production Gate)
-        run: |
-          cd apps/api && npm run build
-          cd ../web && npm run build
+      - name: 8. Build Backend API
+        working-directory: ./apps/api
+        run: npm run build
+
+      - name: 9. Build Frontend Web (PWA)
+        working-directory: ./apps/web
+        run: npm run build
