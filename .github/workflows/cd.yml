@@ -52,7 +52,7 @@ jobs:
           file: ./apps/api/Dockerfile
           push: true
           tags: |
-            ${{ env.IMAGE_API }}:${{ steps.vars.outputs.sha_short }}
+            ${{ env.IMAGE_API }}:${{ steps.vars.outputs['sha_short'] || github.sha }}
             ${{ env.IMAGE_API }}:latest
 
       - name: 7. Build and Push Web Docker Image
@@ -62,17 +62,17 @@ jobs:
           file: ./apps/web/Dockerfile
           push: true
           tags: |
-            ${{ env.IMAGE_WEB }}:${{ steps.vars.outputs.sha_short }}
+            ${{ env.IMAGE_WEB }}:${{ steps.vars.outputs['sha_short'] || github.sha }}
             ${{ env.IMAGE_WEB }}:latest
 
       - name: 8. Trigger Production Deploy & Run Prisma Migration
         id: deploy
         env:
-          RENDER_API_DEPLOY_HOOK: ${{ secrets.RENDER_API_DEPLOY_HOOK }}
+          DEPLOY_HOOK: ${{ secrets['RENDER_API_DEPLOY_HOOK'] || '' }}
         run: |
           echo "Simulating Production Deployment Webhook..."
-          if [ -n "$RENDER_API_DEPLOY_HOOK" ]; then
-            curl -X POST "$RENDER_API_DEPLOY_HOOK" || echo "Webhook trigger sent."
+          if [ -n "$DEPLOY_HOOK" ]; then
+            curl -X POST "$DEPLOY_HOOK" || echo "Webhook trigger sent."
           else
             echo "RENDER_API_DEPLOY_HOOK secret is not set, skipping remote trigger."
           fi
@@ -80,10 +80,10 @@ jobs:
       - name: 9. Automated Smoke Test (GET /health)
         id: smoke_test
         env:
-          PRODUCTION_API_URL: ${{ secrets.PRODUCTION_API_URL }}
+          PROD_URL: ${{ secrets['PRODUCTION_API_URL'] || '' }}
         run: |
           echo "Executing automated Smoke Test against healthcheck endpoint..."
-          TARGET_URL="${PRODUCTION_API_URL:-http://localhost:4000}"
+          TARGET_URL="${PROD_URL:-http://localhost:4000}"
           echo "Testing target: ${TARGET_URL}/health"
           # In live CI/CD runner or mocked pipeline, verify health response
           python3 -c "import urllib.request, json; print('Simulating Smoke Test verify... OK')" || true
@@ -92,10 +92,10 @@ jobs:
       - name: 10. Automated Rollback on Smoke Test Failure
         if: ${{ failure() && steps.deploy.outcome == 'success' }}
         env:
-          RENDER_ROLLBACK_HOOK: ${{ secrets.RENDER_ROLLBACK_HOOK }}
+          ROLLBACK_HOOK: ${{ secrets['RENDER_ROLLBACK_HOOK'] || '' }}
         run: |
           echo "::error::Smoke test failed! Triggering automatic rollback to previous stable commit..."
-          if [ -n "$RENDER_ROLLBACK_HOOK" ]; then
-            curl -X POST "$RENDER_ROLLBACK_HOOK"
+          if [ -n "$ROLLBACK_HOOK" ]; then
+            curl -X POST "$ROLLBACK_HOOK"
           fi
           echo "Rollback sequence completed."
