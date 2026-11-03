@@ -76,7 +76,7 @@ export const FALLBACK_PRODUCTS = [
     description: 'Lá trà Oolong sao nhiệt tạo vị khói thơm lừng kết hợp sữa tươi thanh trùng béo ngậy.',
     category: 'MilkTea',
     basePrice: 42000,
-    imageUrl: 'https://images.unsplash.com/photo-1558857563-b37cfb433cf5?w=500&q=80',
+    imageUrl: 'https://images.unsplash.com/photo-1572490122747-3968b75cc699?w=500&q=80',
     sizeOptions: [
       { size: 'S', price: 0 },
       { size: 'M', price: 6000 },
