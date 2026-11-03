@@ -52,8 +52,8 @@ jobs:
 
       - name: 6. Lint Check (Backend & Frontend)
         run: |
-          cd apps/api && npm run lint || true
-          cd ../web && npm run lint || true
+          cd apps/api && npm run lint
+          cd ../web && npm run lint
 
       - name: 7. Run Unit & Integration Tests
         working-directory: ./apps/api
@@ -61,7 +61,8 @@ jobs:
           DATABASE_URL: postgresql://brewlite:secret@localhost:5432/brewlite_test_db?schema=public
           JWT_SECRET: test_jwt_secret_key_12345
         run: |
-          npm run test || echo "Unit tests completed."
+          npm run test
+          npm run test:e2e
 
       - name: 8. Build Applications (Production Gate)
         run: |

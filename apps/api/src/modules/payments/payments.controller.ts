@@ -4,7 +4,7 @@ import {
   Headers,
   HttpCode,
   HttpStatus,
-  POST,
+  Post,
   UseGuards,
 } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
@@ -16,7 +16,7 @@ import { ProcessPaymentDto } from './dto/process-payment.dto';
 export class PaymentsController {
   constructor(private readonly paymentsService: PaymentsService) {}
 
-  @POST()
+  @Post()
   @HttpCode(HttpStatus.OK)
   async processPayment(
     @Headers('idempotency-key') idempotencyKey: string,

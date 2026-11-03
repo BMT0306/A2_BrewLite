@@ -1,0 +1,27 @@
+{
+  "name": "brewlite-monorepo",
+  "version": "1.0.0",
+  "description": "BrewLite - Mobile-First Beverage Ordering & Payment System (Monorepo)",
+  "private": true,
+  "workspaces": [
+    "apps/*"
+  ],
+  "scripts": {
+    "install:all": "npm install --prefix apps/api && npm install --prefix apps/web",
+    "build": "npm run build --prefix apps/api && npm run build --prefix apps/web",
+    "build:api": "npm run build --prefix apps/api",
+    "build:web": "npm run build --prefix apps/web",
+    "test": "npm test --prefix apps/api",
+    "test:e2e": "npm run test:e2e --prefix apps/api",
+    "test:all": "npm test --prefix apps/api && npm run test:e2e --prefix apps/api",
+    "lint": "npm run lint --prefix apps/api && npm run lint --prefix apps/web",
+    "prisma:generate": "npx --prefix apps/api prisma generate",
+    "docker:up": "docker compose up --build -d",
+    "docker:down": "docker compose down",
+    "docker:logs": "docker compose logs -f",
+    "render:diagrams": "node scripts/render-diagrams.mjs"
+  },
+  "devDependencies": {
+    "@types/node": "^20.11.0"
+  }
+}
