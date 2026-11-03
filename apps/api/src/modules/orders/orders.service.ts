@@ -111,7 +111,7 @@ export class OrdersService {
   }
 
   async findUserOrders(userId: string, role?: string) {
-    const where: any = {};
+    const where: Prisma.OrderWhereInput = {};
     // Khách hàng thông thường chỉ xem được đơn của chính mình; Staff và Manager có thể xem toàn bộ
     if (role !== 'STAFF' && role !== 'MANAGER') {
       where.userId = userId;

@@ -14,13 +14,24 @@ import {
   Param,
   Patch,
   Post,
-  Request,
+  Req,
   UseGuards,
 } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { OrdersService } from './orders.service';
 import { CreateOrderDto } from './dto/create-order.dto';
 import { UpdateOrderStatusDto } from './dto/update-order-status.dto';
+
+interface AuthenticatedUser {
+  id: string;
+  email: string;
+  fullName: string;
+  role: string;
+}
+
+interface AuthenticatedRequest {
+  user: AuthenticatedUser;
+}
 
 @Controller('orders')
 @UseGuards(JwtAuthGuard)
@@ -29,12 +40,12 @@ export class OrdersController {
 
   @Post()
   @HttpCode(HttpStatus.CREATED)
-  async create(@Request() req: any, @Body() dto: CreateOrderDto) {
+  async create(@Req() req: AuthenticatedRequest, @Body() dto: CreateOrderDto) {
     return this.ordersService.create(req.user.id, dto);
   }
 
   @Get()
-  async findAll(@Request() req: any) {
+  async findAll(@Req() req: AuthenticatedRequest) {
     return this.ordersService.findUserOrders(req.user.id, req.user.role);
   }
 
