@@ -1,3 +1,10 @@
+/**
+ * @file register.dto.ts
+ * @description Data Transfer Object đăng ký tài khoản khách hàng mới
+ * @author Thành viên Chính 2 - Backend & Database Lead
+ * @project BrewLite - Assignment 2 (Software Engineering)
+ */
+
 import { IsEmail, IsNotEmpty, IsOptional, IsString, MinLength } from 'class-validator';
 
 export class RegisterDto {

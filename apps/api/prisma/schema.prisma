@@ -1,3 +1,9 @@
+// ==============================================================================
+// BREWLITE - PRISMA DATABASE SCHEMA (7 MODELS + 5 ENUMS)
+// Phụ trách: Thành viên Chính 2 - Backend & Database Lead
+// Khớp 100% với Sơ đồ lớp miền nghiệp vụ: docs/diagrams/class-domain.puml (.svg)
+// ==============================================================================
+
 generator client {
   provider = "prisma-client-js"
 }

@@ -7,8 +7,8 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
     try {
       await this.$connect();
       console.log('[PrismaService] Connected to PostgreSQL Database.');
-    } catch (err) {
-      console.warn('[PrismaService] Direct DB connection failed during startup (will retry on query):', err.message);
+    } catch (err: any) {
+      console.warn('[PrismaService] Direct DB connection failed during startup (will retry on query):', err?.message || err);
     }
   }
 

@@ -5,14 +5,19 @@
  * @project BrewLite - Assignment 2 (Software Engineering)
  */
 
-import { Controller, GET } from '@nestjs/common';
+import { Controller, Get } from '@nestjs/common';
 
 @Controller('health')
 export class HealthController {
   private readonly startTime = Date.now();
 
-  @GET()
-  getHealth() {
+  @Get()
+  getHealth(): {
+    status: string;
+    service: string;
+    timestamp: string;
+    uptime: number;
+  } {
     return {
       status: 'ok',
       service: 'brewlite-api',

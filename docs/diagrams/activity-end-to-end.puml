@@ -1,5 +1,5 @@
 @startuml activity-end-to-end
-title BrewLite - End-to-End Activity Diagram (Menu -> Cart -> Checkout -> Tracking)
+title BrewLite - End-to-End Activity Diagram (Menu -> Cart -> Checkout -> Tracking) (Task 2.2 - Phụ trách: Chính 2)
 skinparam ConditionEndStyle hline
 
 |Customer|
