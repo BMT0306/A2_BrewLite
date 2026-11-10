@@ -52,7 +52,11 @@ jobs:
         working-directory: ./apps/api
         env:
           DATABASE_URL: postgresql://brewlite:secret@localhost:5432/brewlite_test_db?schema=public
-        run: npm run prisma:generate
+        run: |
+          echo "### Prisma Diagnostics" >> $GITHUB_STEP_SUMMARY
+          echo "Node version: $(node -v)" >> $GITHUB_STEP_SUMMARY
+          npx prisma -v >> $GITHUB_STEP_SUMMARY 2>&1 || true
+          npx prisma generate 2>&1 | tee -a $GITHUB_STEP_SUMMARY
 
       - name: 6. Lint Check (Backend & Frontend)
         run: |
