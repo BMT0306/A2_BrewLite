@@ -1,3 +1,10 @@
+/**
+ * @file auth.controller.ts
+ * @description API Controller xử lý đăng ký và đăng nhập người dùng (FR-04, UC-04)
+ * @author Thành viên Chính 2 - Backend & Database Lead
+ * @project BrewLite - Assignment 2 (Software Engineering)
+ */
+
 import { Body, Controller, HttpCode, HttpStatus, Post } from '@nestjs/common';
 import { AuthService } from './auth.service';
 import { RegisterDto } from './dto/register.dto';

@@ -12,7 +12,12 @@ export class HealthController {
   private readonly startTime = Date.now();
 
   @Get()
-  getHealth() {
+  getHealth(): {
+    status: string;
+    service: string;
+    timestamp: string;
+    uptime: number;
+  } {
     return {
       status: 'ok',
       service: 'brewlite-api',

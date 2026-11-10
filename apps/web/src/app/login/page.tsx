@@ -9,7 +9,7 @@
 
 import React, { useState, useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { LogIn, UserPlus, LogOut, ShieldCheck, User } from 'lucide-react';
+import { LogOut, ShieldCheck } from 'lucide-react';
 import { apiFetch, getStoredUser, setStoredToken, setStoredUser, removeStoredToken } from '../../lib/api';
 
 function LoginForm() {
@@ -248,10 +248,9 @@ function LoginForm() {
   );
 }
 
-
 export default function LoginPage() {
   return (
-    <Suspense fallback={<div className="p-8 text-center text-xs text-slate-500">Đang tải biểu mẫu...</div>}>
+    <Suspense fallback={<div className="p-6 text-center text-xs text-slate-500">Đang tải biểu mẫu...</div>}>
       <LoginForm />
     </Suspense>
   );
