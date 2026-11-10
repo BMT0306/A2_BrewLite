@@ -1,7 +1,13 @@
 @startuml usecase-overall
+' ==============================================================================
+' BREWLITE - OVERALL SYSTEM USE-CASE DIAGRAM (Task 1.2)
+' Phụ trách: Hoàng Minh Quân (Phụ 2) - Business Analyst 2 (SRS & Use-case Lead)
+' Dự án: BrewLite Mobile-first Ordering & Payment System (Assignment 2)
+' ==============================================================================
+
 left to right direction
 skinparam packageStyle rectangle
-title BrewLite - Overall System Use-Case Diagram (Task 1.2)
+title BrewLite - Overall System Use-Case Diagram (Phụ 2 - Task 1.2)
 
 actor "Khách hàng\n(Customer)" as Customer
 actor "Nhân viên quầy\n(Barista / Staff)" as Staff
