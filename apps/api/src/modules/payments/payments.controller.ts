@@ -1,3 +1,10 @@
+/**
+ * @file payments.controller.ts
+ * @description API Controller xử lý thanh toán không tiền mặt và chống trùng lặp Idempotency
+ * @author Thành viên Chính 2 - Backend & Database Lead
+ * @project BrewLite - Assignment 2 (Software Engineering)
+ */
+
 import {
   Body,
   Controller,

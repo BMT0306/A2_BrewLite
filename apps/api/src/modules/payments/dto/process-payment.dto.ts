@@ -1,3 +1,10 @@
+/**
+ * @file process-payment.dto.ts
+ * @description Data Transfer Object yêu cầu xử lý thanh toán đơn hàng
+ * @author Thành viên Chính 2 - Backend & Database Lead
+ * @project BrewLite - Assignment 2 (Software Engineering)
+ */
+
 import { IsBoolean, IsEnum, IsNotEmpty, IsOptional, IsString } from 'class-validator';
 import { PaymentMethod } from '@prisma/client';
 
