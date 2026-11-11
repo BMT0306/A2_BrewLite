@@ -2,7 +2,7 @@ name: BrewLite CI Pipeline (Task 4.4)
 
 on:
   push:
-    branches: [ main, develop, 'feature/**', 'fix/**' ]
+    branches: [ main, develop, 'feat/**', 'feature/**', 'fix/**' ]
   pull_request:
     branches: [ main, develop ]
 
