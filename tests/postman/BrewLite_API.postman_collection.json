@@ -1,0 +1,585 @@
+{
+  "info": {
+    "_postman_id": "a9d70832-601f-4cb1-97b7-53c61309d94a",
+    "name": "BrewLite Backend REST API Test Suite",
+    "description": "Bộ kiểm thử tự động toàn diện cho hệ thống REST API BrewLite (Assignment 2 - Software Engineering).\nBao gồm kiểm thử Healthcheck, Xác thực JWT (UC-04), Danh mục sản phẩm (UC-02), Đặt hàng nguyên tử trong Transaction (UC-05), Thanh toán không tiền mặt và chống trùng lặp Idempotency (UC-06).",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "01 - System Health & Diagnostics",
+      "item": [
+        {
+          "name": "Health Check Service",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 200 OK\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "pm.test(\"Service status is ok and healthy\", function () {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.expect(jsonData.status).to.eql(\"ok\");",
+                  "    pm.expect(jsonData.service).to.eql(\"brewlite-api\");",
+                  "    pm.expect(jsonData).to.have.property(\"uptime\");",
+                  "    pm.expect(jsonData).to.have.property(\"timestamp\");",
+                  "});",
+                  "pm.test(\"Response time is under 500ms\", function () {",
+                  "    pm.expect(pm.response.responseTime).to.be.below(500);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/health",
+              "host": ["{{baseUrl}}"],
+              "path": ["health"]
+            }
+          }
+        },
+        {
+          "name": "Root Service Info",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 200 OK\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "pm.test(\"Root info contains valid service name & endpoints\", function () {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.expect(jsonData.name).to.include(\"BrewLite\");",
+                  "    pm.expect(jsonData.status).to.eql(\"online\");",
+                  "    pm.expect(jsonData).to.have.property(\"endpoints\");",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/",
+              "host": ["{{baseUrl}}"],
+              "path": [""]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "02 - Authentication & Authorization (UC-04)",
+      "item": [
+        {
+          "name": "Register New Customer Account",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 201 Created\", function () {",
+                  "    pm.response.to.have.status(201);",
+                  "});",
+                  "pm.test(\"Returns valid accessToken and user profile\", function () {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.expect(jsonData).to.have.property(\"accessToken\");",
+                  "    pm.expect(jsonData.user).to.have.property(\"email\");",
+                  "    pm.expect(jsonData.user.role).to.eql(\"CUSTOMER\");",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"customer_{{$timestamp}}@brewlite.vn\",\n  \"password\": \"123456\",\n  \"fullName\": \"Khách Hàng Kiểm Thử Postman\",\n  \"phone\": \"0912345678\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/auth/register",
+              "host": ["{{baseUrl}}"],
+              "path": ["auth", "register"]
+            }
+          }
+        },
+        {
+          "name": "Login Customer Account (Success)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 200 OK\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "pm.test(\"Returns valid JWT accessToken\", function () {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.expect(jsonData).to.have.property(\"accessToken\");",
+                  "    pm.expect(jsonData.accessToken.length).to.be.above(20);",
+                  "    pm.expect(jsonData.user.email).to.eql(\"customer@brewlite.vn\");",
+                  "    // Tự động lưu Token vào biến môi trường authToken để dùng cho các request sau",
+                  "    pm.environment.set(\"authToken\", jsonData.accessToken);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"customer@brewlite.vn\",\n  \"password\": \"123456\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/auth/login",
+              "host": ["{{baseUrl}}"],
+              "path": ["auth", "login"]
+            }
+          }
+        },
+        {
+          "name": "Login Negative Test (Wrong Password - 401)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 401 Unauthorized\", function () {",
+                  "    pm.response.to.have.status(401);",
+                  "});",
+                  "pm.test(\"Returns appropriate error message\", function () {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.expect(jsonData.message).to.be.a(\"string\");",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"customer@brewlite.vn\",\n  \"password\": \"sai_mat_khau_123\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/auth/login",
+              "host": ["{{baseUrl}}"],
+              "path": ["auth", "login"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "03 - Products Catalog & Search (UC-02)",
+      "item": [
+        {
+          "name": "Get Products Menu (All)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 200 OK\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "pm.test(\"Returns array of beverages with customizations\", function () {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.expect(jsonData).to.be.an(\"array\");",
+                  "    pm.expect(jsonData.length).to.be.above(0);",
+                  "    var firstItem = jsonData[0];",
+                  "    pm.expect(firstItem).to.have.property(\"id\");",
+                  "    pm.expect(firstItem).to.have.property(\"name\");",
+                  "    pm.expect(firstItem).to.have.property(\"basePrice\");",
+                  "    pm.expect(firstItem).to.have.property(\"sizeOptions\");",
+                  "    pm.expect(firstItem).to.have.property(\"toppingOptions\");",
+                  "    // Lưu productId đầu tiên để dùng cho kiểm thử chi tiết và đặt hàng",
+                  "    pm.environment.set(\"productId\", firstItem.id);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/products",
+              "host": ["{{baseUrl}}"],
+              "path": ["products"]
+            }
+          }
+        },
+        {
+          "name": "Filter Products by Category",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 200 OK\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "pm.test(\"Filtered results match Coffee category\", function () {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.expect(jsonData).to.be.an(\"array\");",
+                  "    jsonData.forEach(function(item) {",
+                  "        pm.expect(item.category).to.eql(\"Coffee\");",
+                  "    });",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/products?category=Coffee",
+              "host": ["{{baseUrl}}"],
+              "path": ["products"],
+              "query": [
+                {
+                  "key": "category",
+                  "value": "Coffee"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get Product Detail by ID",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 200 OK\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "pm.test(\"Product detail has sizes and topping list\", function () {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.expect(jsonData.id).to.eql(pm.environment.get(\"productId\"));",
+                  "    pm.expect(jsonData.basePrice).to.be.a(\"number\");",
+                  "    pm.expect(jsonData.sizeOptions).to.be.an(\"array\");",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/products/{{productId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["products", "{{productId}}"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "04 - Orders & Atomic Checkout (UC-05)",
+      "item": [
+        {
+          "name": "Create Order (Authenticated)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 201 Created\", function () {",
+                  "    pm.response.to.have.status(201);",
+                  "});",
+                  "pm.test(\"Order is created with PENDING status\", function () {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.expect(jsonData).to.have.property(\"orderId\");",
+                  "    pm.expect(jsonData).to.have.property(\"orderCode\");",
+                  "    pm.expect(jsonData.status).to.eql(\"PENDING\");",
+                  "    pm.expect(Number(jsonData.totalAmount)).to.be.above(0);",
+                  "    // Lưu mã đơn hàng vào environment để dùng cho theo dõi và thanh toán",
+                  "    pm.environment.set(\"orderId\", jsonData.orderId);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"items\": [\n    {\n      \"productId\": \"{{productId}}\",\n      \"size\": \"M\",\n      \"toppings\": [\"Trân châu đen\"],\n      \"quantity\": 2,\n      \"unitPrice\": 35000\n    }\n  ],\n  \"note\": \"Giao hàng nhanh - Ít đường nhiều đá\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/orders",
+              "host": ["{{baseUrl}}"],
+              "path": ["orders"]
+            }
+          }
+        },
+        {
+          "name": "Get User Orders History",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 200 OK\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "pm.test(\"Returns list of orders for customer\", function () {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.expect(jsonData).to.be.an(\"array\");",
+                  "    pm.expect(jsonData.length).to.be.above(0);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/orders",
+              "host": ["{{baseUrl}}"],
+              "path": ["orders"]
+            }
+          }
+        },
+        {
+          "name": "Track Order by ID",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 200 OK\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "pm.test(\"Order matches requested ID and has valid status\", function () {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.expect(jsonData.id).to.eql(pm.environment.get(\"orderId\"));",
+                  "    pm.expect(jsonData).to.have.property(\"orderCode\");",
+                  "    pm.expect(jsonData).to.have.property(\"status\");",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/orders/{{orderId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["orders", "{{orderId}}"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "05 - Cashless Payment & Idempotency (UC-06)",
+      "item": [
+        {
+          "name": "Process Payment (First Request)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 200 OK\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "pm.test(\"Payment succeeds and transitions order to CONFIRMED\", function () {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.expect(jsonData).to.have.property(\"paymentId\");",
+                  "    pm.expect(jsonData.paymentStatus).to.eql(\"PAID\");",
+                  "    pm.expect(jsonData.orderStatus).to.eql(\"CONFIRMED\");",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}"
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "{{idempotencyKey}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"orderId\": \"{{orderId}}\",\n  \"method\": \"WALLET\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/payments",
+              "host": ["{{baseUrl}}"],
+              "path": ["payments"]
+            }
+          }
+        },
+        {
+          "name": "Process Payment (Idempotency Replay - Anti-Duplicate)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 200 OK\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "pm.test(\"Idempotency prevents duplicate charge and returns cached receipt\", function () {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.expect(jsonData.paymentStatus).to.eql(\"PAID\");",
+                  "    pm.expect(jsonData.orderStatus).to.eql(\"CONFIRMED\");",
+                  "    pm.expect(jsonData).to.have.property(\"paymentId\");",
+                  "    pm.expect(jsonData.isIdempotentReplay).to.eql(true);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}"
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "{{idempotencyKey}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"orderId\": \"{{orderId}}\",\n  \"method\": \"WALLET\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/payments",
+              "host": ["{{baseUrl}}"],
+              "path": ["payments"]
+            }
+          }
+        },
+        {
+          "name": "Update Order Status (Staff Fulfillment)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 200 OK\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "pm.test(\"Order status transitions to COMPLETED\", function () {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.expect(jsonData.status).to.eql(\"COMPLETED\");",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": \"COMPLETED\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/orders/{{orderId}}/status",
+              "host": ["{{baseUrl}}"],
+              "path": ["orders", "{{orderId}}", "status"]
+            }
+          }
+        }
+      ]
+    }
+  ]
+}
