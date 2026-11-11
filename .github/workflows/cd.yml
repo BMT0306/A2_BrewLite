@@ -9,7 +9,10 @@ env:
   REGISTRY: ghcr.io
   IMAGE_API: ghcr.io/${{ github.repository }}/api
   IMAGE_WEB: ghcr.io/${{ github.repository }}/web
-  PRODUCTION_API_URL: http://localhost:4000
+  PRODUCTION_API_URL: ${{ secrets.PRODUCTION_API_URL }}
+  RENDER_API_DEPLOY_HOOK: ${{ secrets.RENDER_API_DEPLOY_HOOK }}
+  RENDER_WEB_DEPLOY_HOOK: ${{ secrets.RENDER_WEB_DEPLOY_HOOK }}
+  RENDER_ROLLBACK_HOOK: ${{ secrets.RENDER_ROLLBACK_HOOK }}
 
 jobs:
   cd-delivery:
@@ -28,12 +31,23 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 20
+          cache: 'npm'
+          cache-dependency-path: |
+            apps/api/package-lock.json
+            apps/web/package-lock.json
 
       - name: 3. Quality Gate (Pre-deploy Verification)
         run: |
           echo "Verifying build and quality requirements..."
-          cd apps/api && npm ci && npm run build
-          cd ../web && npm ci && npm run build
+          cd apps/api
+          npm ci
+          npx prisma generate
+          npx tsc --noEmit
+          npm run test -- --runInBand
+          npm run build
+          cd ../web
+          npm ci
+          npm run build
 
       - name: 4. Log in to GitHub Container Registry (GHCR)
         uses: docker/login-action@v3
@@ -68,22 +82,28 @@ jobs:
 
       - name: 8. Trigger Production Deploy & Run Prisma Migration
         id: deploy
+        if: ${{ env.RENDER_API_DEPLOY_HOOK != '' || env.RENDER_WEB_DEPLOY_HOOK != '' }}
         run: |
-          echo "Simulating Production Deployment Webhook..."
-          echo "Deploying containerized microservices to cloud infrastructure..."
-          echo "Production deployment webhook simulation completed."
+          if [ -n "$RENDER_API_DEPLOY_HOOK" ]; then
+            curl --fail --silent --show-error --retry 3 --max-time 30 \
+              -X POST "$RENDER_API_DEPLOY_HOOK"
+          fi
+          if [ -n "$RENDER_WEB_DEPLOY_HOOK" ]; then
+            curl --fail --silent --show-error --retry 3 --max-time 30 \
+              -X POST "$RENDER_WEB_DEPLOY_HOOK"
+          fi
 
       - name: 9. Automated Smoke Test (GET /health)
         id: smoke_test
+        if: ${{ env.PRODUCTION_API_URL != '' && steps.deploy.outcome == 'success' }}
         run: |
-          echo "Executing automated Smoke Test against healthcheck endpoint..."
-          echo "Testing target: ${{ env.PRODUCTION_API_URL }}/health"
-          # In live CI/CD runner or mocked pipeline, verify health response
-          python3 -c "import urllib.request, json; print('Simulating Smoke Test verify... OK')" || true
-          echo "Smoke Test Passed: HTTP 200 OK received."
+          echo "Testing target: ${PRODUCTION_API_URL}/health"
+          curl --fail --silent --show-error --retry 10 --retry-delay 5 \
+            --max-time 15 "${PRODUCTION_API_URL}/health"
 
       - name: 10. Automated Rollback on Smoke Test Failure
-        if: ${{ failure() && steps.deploy.outcome == 'success' }}
+        if: ${{ failure() && steps.deploy.outcome == 'success' && env.RENDER_ROLLBACK_HOOK != '' }}
         run: |
-          echo "::error::Smoke test failed! Triggering automatic rollback to previous stable commit..."
-          echo "Rollback sequence completed."
+          echo "::error::Smoke test failed; triggering rollback."
+          curl --fail --silent --show-error --retry 3 --max-time 30 \
+            -X POST "$RENDER_ROLLBACK_HOOK"
