@@ -1,26 +1,38 @@
 @startuml usecase-checkout
 left to right direction
 skinparam packageStyle rectangle
-title BrewLite - Focused Use-Case Diagram: Đặt và Thanh toán Đơn hàng (Task 1.3)
+
+title BrewLite - Focused Use-Case Diagram: Đặt và Thanh toán Đơn hàng (UC-05)
 
 actor "Khách hàng\n(Customer)" as Customer
-actor "Dịch vụ Thanh toán\n(Mock Payment Service)" as PaySvc
 
-rectangle "Phạm vi Use-Case: Đặt và Thanh toán Đơn hàng (UC-Checkout)" {
-  usecase "Đặt và thanh toán đơn hàng\n(Place & Pay Order)" as UC_Main
-  usecase "Xác thực JWT Token" as UC_Auth
-  usecase "Kiểm tra & Trừ tồn kho\n(Database Transaction)" as UC_Stock
-  usecase "Xử lý Thanh toán Ví/Thẻ\n(Idempotent Payment)" as UC_Pay
-  usecase "Hoàn lại tồn kho khi\nthanh toán thất bại" as UC_Rollback
-  usecase "Áp dụng mã giảm giá\n(Optional Extension)" as UC_Promo
+rectangle "BrewLite - Hệ thống Đặt và Thanh toán Đơn hàng" {
+
+  usecase "Đặt và thanh toán\nđơn hàng" as UC_Main
+
+  usecase "Xác thực JWT\nToken" as UC_Auth
+
+  usecase "Kiểm tra & trừ\ntồn kho" as UC_Stock
+
+  usecase "Xử lý thanh toán\n(WALLET / CARD)" as UC_Pay
+
+  usecase "Kiểm tra\nIdempotency-Key" as UC_Idempotency
+
+  usecase "Hoàn lại tồn kho\nkhi thanh toán thất bại" as UC_Rollback
+
+  usecase "Áp dụng mã\ngiảm giá" as UC_Promo
 
   UC_Main ..> UC_Auth : <<include>>
   UC_Main ..> UC_Stock : <<include>>
   UC_Main ..> UC_Pay : <<include>>
-  UC_Rollback ..> UC_Pay : <<extend>>\n[Thanh toán lỗi]
+
+  UC_Pay ..> UC_Idempotency : <<include>>
+
+  UC_Rollback ..> UC_Pay : <<extend>>\n[Thanh toán thất bại]
+
   UC_Promo ..> UC_Main : <<extend>>\n[Có nhập mã]
 }
 
 Customer --> UC_Main
-UC_Pay --> PaySvc
+
 @enduml
