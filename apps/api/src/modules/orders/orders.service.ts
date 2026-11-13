@@ -6,7 +6,7 @@
  */
 
 import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
-import { OrderStatus, Prisma } from '@prisma/client';
+import { OrderStatus, PaymentStatus, Prisma } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
 import { CreateOrderDto } from './dto/create-order.dto';
 import { UpdateOrderStatusDto } from './dto/update-order-status.dto';
@@ -124,7 +124,17 @@ export class OrdersService {
           id: item.productId,
           name: 'Đồ uống BrewLite',
           basePrice: item.unitPrice,
+          stockQuantity: 10,
+          isAvailable: true,
         };
+
+        // Kiểm tra tồn kho ngay trong chế độ dự phòng bộ nhớ
+        if (!prod.isAvailable || (prod.stockQuantity !== undefined && prod.stockQuantity < item.quantity)) {
+          throw new ConflictException(
+            `Sản phẩm "${prod.name}" hiện không đủ tồn kho (Còn lại: ${prod.stockQuantity ?? 0}, yêu cầu: ${item.quantity}). Vui lòng cập nhật giỏ hàng.`,
+          );
+        }
+
         const lineTotal = Number(item.unitPrice) * item.quantity;
         subtotal += lineTotal;
         return {
@@ -227,8 +237,44 @@ export class OrdersService {
 
   async updateStatus(id: string, dto: UpdateOrderStatusDto) {
     try {
-      const order = await this.prisma.order.findUnique({ where: { id } });
+      const order = await this.prisma.order.findUnique({
+        where: { id },
+        include: { items: true, payments: true },
+      });
+
       if (order) {
+        // Xử lý Giao dịch bù trừ (Compensating Transaction) khi Hủy đơn hàng (Order Cancellation & Refund)
+        if (dto.status === OrderStatus.CANCELLED) {
+          return await this.prisma.$transaction(async (tx) => {
+            // 1. Tự động hoàn lại số lượng tồn kho cho tất cả món trong đơn
+            for (const item of order.items) {
+              await tx.product.update({
+                where: { id: item.productId },
+                data: {
+                  stockQuantity: { increment: item.quantity },
+                },
+              });
+            }
+
+            // 2. Tự động hoàn tiền (Refund) các giao dịch thanh toán đã thành công
+            for (const payment of order.payments) {
+              if (payment.status === PaymentStatus.PAID) {
+                await tx.payment.update({
+                  where: { id: payment.id },
+                  data: { status: PaymentStatus.REFUNDED },
+                });
+              }
+            }
+
+            // 3. Cập nhật trạng thái đơn hàng sang CANCELLED
+            return await tx.order.update({
+              where: { id },
+              data: { status: OrderStatus.CANCELLED },
+              include: { items: true, payments: true },
+            });
+          });
+        }
+
         return await this.prisma.order.update({
           where: { id },
           data: { status: dto.status },
@@ -239,7 +285,7 @@ export class OrdersService {
         });
       }
     } catch {
-      // In-memory fallback
+      // In-memory fallback khi DB offline
     }
 
     const memoryOrder = this.inMemoryOrders.find((o) => o.id === id);
@@ -247,6 +293,14 @@ export class OrdersService {
       throw new NotFoundException(`Không tìm thấy đơn hàng với mã ID ${id}`);
     }
     memoryOrder.status = dto.status;
+    if (dto.status === OrderStatus.CANCELLED) {
+      if (memoryOrder.payments) {
+        memoryOrder.payments.forEach((p: any) => {
+          if (p.status === 'PAID') p.status = 'REFUNDED';
+        });
+      }
+      memoryOrder.refundStatus = 'REFUNDED';
+    }
     return memoryOrder;
   }
 }

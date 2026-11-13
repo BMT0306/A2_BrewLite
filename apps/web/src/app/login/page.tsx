@@ -3,13 +3,13 @@
 /**
  * @file login/page.tsx
  * @description Màn hình Đăng nhập, Đăng ký tài khoản và Quản lý Hồ sơ thành viên (UC-04)
- * @author Thành viên Phụ 2 - Business Analyst 2 (SRS & Use-case Lead)
+ * @author Hoàng Minh Quân (Phụ 2) - Business Analyst 2 (SRS & Use-case Lead)
  * @project BrewLite - Assignment 2 (Software Engineering)
  */
 
 import React, { useState, useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { LogOut, ShieldCheck } from 'lucide-react';
+import { LogOut, ShieldCheck, Eye, EyeOff, CheckCircle2, AlertCircle } from 'lucide-react';
 import { apiFetch, getStoredUser, setStoredToken, setStoredUser, removeStoredToken } from '../../lib/api';
 
 function LoginForm() {
@@ -23,30 +23,69 @@ function LoginForm() {
   // Form states
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
   const [fullName, setFullName] = useState('');
   const [phone, setPhone] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState<string | null>(null);
 
   useEffect(() => {
     setCurrentUser(getStoredUser());
   }, []);
 
   const handleQuickFill = (role: 'customer' | 'staff') => {
+    setError(null);
     if (role === 'customer') {
       setEmail('customer@brewlite.vn');
       setPassword('123456');
+      setSuccess('Đã điền tài khoản Khách hàng thử nghiệm!');
     } else {
       setEmail('staff@brewlite.vn');
       setPassword('123456');
+      setSuccess('Đã điền tài khoản Nhân viên quầy thử nghiệm!');
     }
+  };
+
+  const validateForm = (): boolean => {
+    setError(null);
+    setSuccess(null);
+
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      setError('Định dạng email không hợp lệ (Ví dụ: name@brewlite.vn).');
+      return false;
+    }
+
+    if (password.length < 6) {
+      setError('Mật khẩu bảo mật phải có độ dài tối thiểu từ 6 ký tự trở lên.');
+      return false;
+    }
+
+    if (isRegister) {
+      if (!fullName.trim()) {
+        setError('Vui lòng nhập họ và tên của bạn.');
+        return false;
+      }
+      if (password !== confirmPassword) {
+        setError('Mật khẩu xác nhận không trùng khớp. Vui lòng kiểm tra lại.');
+        return false;
+      }
+    }
+
+    return true;
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setError(null);
+
+    if (!validateForm()) return;
+
     setLoading(true);
+    setError(null);
+    setSuccess(null);
 
     try {
       if (isRegister) {
@@ -56,7 +95,8 @@ function LoginForm() {
         });
         setStoredToken(res.accessToken);
         setStoredUser(res.user);
-        router.push(redirectUrl);
+        setSuccess('Đăng ký tài khoản thành công! Đang chuyển hướng...');
+        setTimeout(() => router.push(redirectUrl), 700);
       } else {
         const res = await apiFetch<any>('/auth/login', {
           method: 'POST',
@@ -64,10 +104,18 @@ function LoginForm() {
         });
         setStoredToken(res.accessToken);
         setStoredUser(res.user);
-        router.push(redirectUrl);
+        setSuccess('Đăng nhập thành công! Đang chuyển hướng...');
+        setTimeout(() => router.push(redirectUrl), 700);
       }
     } catch (err: any) {
-      setError(err.message || 'Xác thực thất bại. Vui lòng kiểm tra lại thông tin.');
+      const msg = err.message || 'Xác thực thất bại. Vui lòng kiểm tra lại thông tin.';
+      if (err.status === 401) {
+        setError('Email hoặc mật khẩu không chính xác.');
+      } else if (err.status === 409) {
+        setError('Email này đã được đăng ký trong hệ thống. Vui lòng chuyển sang Đăng nhập.');
+      } else {
+        setError(msg);
+      }
     } finally {
       setLoading(false);
     }
@@ -85,7 +133,7 @@ function LoginForm() {
       <div className="p-4 space-y-4">
         <div className="bg-white rounded-2xl p-5 border border-slate-100 shadow-sm text-center space-y-3">
           <div className="w-16 h-16 rounded-full bg-teal-100 text-teal-800 flex items-center justify-center font-bold text-xl mx-auto shadow-inner">
-            {currentUser.fullName ? currentUser.fullName.charAt(0) : 'U'}
+            {currentUser.fullName ? currentUser.fullName.charAt(0).toUpperCase() : 'U'}
           </div>
           <div>
             <h2 className="text-sm font-bold text-slate-800">{currentUser.fullName}</h2>
@@ -132,7 +180,7 @@ function LoginForm() {
           <button
             type="button"
             onClick={() => handleQuickFill('customer')}
-            className="bg-white hover:bg-amber-100/80 text-amber-900 border border-amber-300 rounded-lg p-2 text-left text-[11px] transition"
+            className="bg-white hover:bg-amber-100/80 text-amber-900 border border-amber-300 rounded-lg p-2 text-left text-[11px] transition shadow-xs"
           >
             <span className="font-bold block">1-Chạm: Khách hàng</span>
             <span className="text-[10px] text-amber-700 block truncate">customer@brewlite.vn</span>
@@ -140,7 +188,7 @@ function LoginForm() {
           <button
             type="button"
             onClick={() => handleQuickFill('staff')}
-            className="bg-white hover:bg-amber-100/80 text-amber-900 border border-amber-300 rounded-lg p-2 text-left text-[11px] transition"
+            className="bg-white hover:bg-amber-100/80 text-amber-900 border border-amber-300 rounded-lg p-2 text-left text-[11px] transition shadow-xs"
           >
             <span className="font-bold block">1-Chạm: Nhân viên quầy</span>
             <span className="text-[10px] text-amber-700 block truncate">staff@brewlite.vn</span>
@@ -155,6 +203,7 @@ function LoginForm() {
           onClick={() => {
             setIsRegister(false);
             setError(null);
+            setSuccess(null);
           }}
           className={`flex-1 py-2 text-xs font-bold rounded-lg transition ${
             !isRegister ? 'bg-white text-teal-800 shadow-sm' : 'text-slate-500'
@@ -167,6 +216,7 @@ function LoginForm() {
           onClick={() => {
             setIsRegister(true);
             setError(null);
+            setSuccess(null);
           }}
           className={`flex-1 py-2 text-xs font-bold rounded-lg transition ${
             isRegister ? 'bg-white text-teal-800 shadow-sm' : 'text-slate-500'
@@ -176,10 +226,19 @@ function LoginForm() {
         </button>
       </div>
 
+      {/* Success Notification */}
+      {success && (
+        <div className="bg-emerald-50 text-emerald-800 text-xs p-3 rounded-xl border border-emerald-200 flex items-center space-x-2">
+          <CheckCircle2 className="w-4 h-4 text-emerald-600 flex-shrink-0" />
+          <span>{success}</span>
+        </div>
+      )}
+
       {/* Error display */}
       {error && (
-        <div className="bg-rose-50 text-rose-700 text-xs p-3 rounded-xl border border-rose-200">
-          {error}
+        <div className="bg-rose-50 text-rose-700 text-xs p-3 rounded-xl border border-rose-200 flex items-center space-x-2">
+          <AlertCircle className="w-4 h-4 text-rose-500 flex-shrink-0" />
+          <span>{error}</span>
         </div>
       )}
 
@@ -213,7 +272,7 @@ function LoginForm() {
 
         {isRegister && (
           <div>
-            <label className="text-[11px] font-bold text-slate-700 block mb-1">Số điện thoại</label>
+            <label className="text-[11px] font-bold text-slate-700 block mb-1">Số điện thoại (tùy chọn)</label>
             <input
               type="tel"
               value={phone}
@@ -226,20 +285,46 @@ function LoginForm() {
 
         <div>
           <label className="text-[11px] font-bold text-slate-700 block mb-1">Mật khẩu</label>
-          <input
-            type="password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            placeholder="••••••••"
-            required
-            className="w-full text-xs p-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-teal-600"
-          />
+          <div className="relative">
+            <input
+              type={showPassword ? 'text' : 'password'}
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              placeholder="Tối thiểu 6 ký tự"
+              required
+              className="w-full text-xs p-2.5 pr-9 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-teal-600"
+            />
+            <button
+              type="button"
+              onClick={() => setShowPassword(!showPassword)}
+              className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 p-0.5"
+              tabIndex={-1}
+            >
+              {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+            </button>
+          </div>
         </div>
+
+        {isRegister && (
+          <div>
+            <label className="text-[11px] font-bold text-slate-700 block mb-1">Xác nhận mật khẩu</label>
+            <div className="relative">
+              <input
+                type={showPassword ? 'text' : 'password'}
+                value={confirmPassword}
+                onChange={(e) => setConfirmPassword(e.target.value)}
+                placeholder="Nhập lại đúng mật khẩu trên"
+                required
+                className="w-full text-xs p-2.5 pr-9 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-teal-600"
+              />
+            </div>
+          </div>
+        )}
 
         <button
           type="submit"
           disabled={loading}
-          className="w-full bg-teal-700 hover:bg-teal-800 text-white font-bold text-xs py-3 rounded-xl shadow-md transition active:scale-95 disabled:opacity-50"
+          className="w-full bg-teal-700 hover:bg-teal-800 text-white font-bold text-xs py-3 rounded-xl shadow-md transition active:scale-95 disabled:opacity-50 mt-2"
         >
           {loading ? 'Đang xử lý...' : isRegister ? 'Tạo tài khoản' : 'Đăng nhập ngay'}
         </button>
@@ -250,7 +335,7 @@ function LoginForm() {
 
 export default function LoginPage() {
   return (
-    <Suspense fallback={<div className="p-6 text-center text-xs text-slate-500">Đang tải biểu mẫu...</div>}>
+    <Suspense fallback={<div className="p-6 text-center text-xs text-slate-500">Đang tải biểu mẫu xác thực...</div>}>
       <LoginForm />
     </Suspense>
   );

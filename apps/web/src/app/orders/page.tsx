@@ -3,14 +3,22 @@
 /**
  * @file orders/page.tsx
  * @description Màn hình Tra cứu Lịch sử Đơn hàng và Theo dõi Trạng thái Pha chế theo thời gian thực (UC-06)
- * @author Thành viên Phụ 2 - Business Analyst 2 (SRS & Use-case Lead)
+ * @author Hoàng Minh Quân (Phụ 2) - Business Analyst 2 (SRS & Use-case Lead)
  * @project BrewLite - Assignment 2 (Software Engineering)
  */
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { ClipboardList, Clock, CheckCircle2, AlertCircle, RefreshCw, ChevronRight } from 'lucide-react';
+import {
+  ClipboardList,
+  Clock,
+  CheckCircle2,
+  AlertCircle,
+  RefreshCw,
+  Search,
+  Filter,
+} from 'lucide-react';
 import { apiFetch, getStoredToken, getStoredUser } from '../../lib/api';
 
 interface OrderItem {
@@ -38,6 +46,8 @@ interface Order {
   payments: any[];
 }
 
+type TabFilter = 'ALL' | 'ACTIVE' | 'COMPLETED' | 'FAILED';
+
 export default function OrdersPage() {
   const router = useRouter();
   const [orders, setOrders] = useState<Order[]>([]);
@@ -45,6 +55,10 @@ export default function OrdersPage() {
   const [error, setError] = useState<string | null>(null);
   const [currentUser, setCurrentUser] = useState<any>(null);
   const [updatingId, setUpdatingId] = useState<string | null>(null);
+
+  // Enhancements for UX / Evaluation
+  const [activeTab, setActiveTab] = useState<TabFilter>('ALL');
+  const [searchQuery, setSearchQuery] = useState('');
 
   const fetchOrders = async () => {
     try {
@@ -85,20 +99,75 @@ export default function OrdersPage() {
     }
   };
 
+  const formatCurrency = (val: number | string) => {
+    return Number(val || 0).toLocaleString('vi-VN') + ' đ';
+  };
+
+  const formatDateTime = (dateString: string) => {
+    try {
+      const d = new Date(dateString);
+      return d.toLocaleDateString('vi-VN', {
+        day: '2-digit',
+        month: '2-digit',
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+      });
+    } catch {
+      return dateString;
+    }
+  };
+
   const getStatusBadge = (status: string) => {
     switch (status) {
+      case 'PENDING':
+        return (
+          <span className="bg-amber-50 text-amber-700 border border-amber-200 text-[10px] px-2 py-0.5 rounded-full font-bold">
+            Chờ thanh toán
+          </span>
+        );
       case 'CONFIRMED':
-        return <span className="bg-blue-100 text-blue-800 text-[10px] px-2 py-0.5 rounded-full font-bold">Đã tiếp nhận</span>;
+        return (
+          <span className="bg-blue-100 text-blue-800 text-[10px] px-2 py-0.5 rounded-full font-bold">
+            Đã tiếp nhận
+          </span>
+        );
       case 'PREPARING':
-        return <span className="bg-amber-100 text-amber-800 text-[10px] px-2 py-0.5 rounded-full font-bold animate-pulse">Đang pha chế</span>;
+        return (
+          <span className="bg-amber-100 text-amber-800 text-[10px] px-2 py-0.5 rounded-full font-bold animate-pulse">
+            Đang pha chế ☕
+          </span>
+        );
       case 'READY':
-        return <span className="bg-teal-100 text-teal-800 text-[10px] px-2 py-0.5 rounded-full font-bold">Sẵn sàng nhận</span>;
+        return (
+          <span className="bg-teal-100 text-teal-800 text-[10px] px-2 py-0.5 rounded-full font-bold">
+            Sẵn sàng nhận 🎉
+          </span>
+        );
       case 'COMPLETED':
-        return <span className="bg-emerald-100 text-emerald-800 text-[10px] px-2 py-0.5 rounded-full font-bold">Đã hoàn tất</span>;
+        return (
+          <span className="bg-emerald-100 text-emerald-800 text-[10px] px-2 py-0.5 rounded-full font-bold">
+            Đã hoàn tất ✓
+          </span>
+        );
       case 'PAYMENT_FAILED':
-        return <span className="bg-rose-100 text-rose-800 text-[10px] px-2 py-0.5 rounded-full font-bold">Thanh toán lỗi (Hoàn kho)</span>;
+        return (
+          <span className="bg-rose-100 text-rose-800 text-[10px] px-2 py-0.5 rounded-full font-bold">
+            Lỗi thanh toán (Hoàn kho)
+          </span>
+        );
+      case 'CANCELLED':
+        return (
+          <span className="bg-rose-100 text-rose-800 text-[10px] px-2 py-0.5 rounded-full font-bold">
+            Đã hủy & Hoàn tiền
+          </span>
+        );
       default:
-        return <span className="bg-slate-100 text-slate-800 text-[10px] px-2 py-0.5 rounded-full font-bold">{status}</span>;
+        return (
+          <span className="bg-slate-100 text-slate-800 text-[10px] px-2 py-0.5 rounded-full font-bold">
+            {status}
+          </span>
+        );
     }
   };
 
@@ -107,11 +176,34 @@ export default function OrdersPage() {
     const labels = ['Xác nhận', 'Pha chế', 'Sẵn sàng', 'Đã lấy'];
     const currentIndex = steps.indexOf(status);
 
+    if (status === 'CANCELLED') {
+      return (
+        <div className="bg-rose-50 text-rose-700 text-[11px] p-2.5 rounded-xl border border-rose-200 flex items-center justify-between">
+          <div className="flex items-center space-x-1.5">
+            <AlertCircle className="w-4 h-4 text-rose-500 shrink-0" />
+            <span>Đơn đã hủy thành công. Tiền đã hoàn lại ví & kho hàng đã được bù trừ.</span>
+          </div>
+          <Link href="/" className="text-[11px] bg-rose-600 hover:bg-rose-700 text-white font-bold px-2.5 py-1 rounded-lg shrink-0 ml-2 transition">
+            Đặt lại món đúng
+          </Link>
+        </div>
+      );
+    }
+
     if (status === 'PAYMENT_FAILED') {
       return (
-        <div className="bg-rose-50 text-rose-700 text-[11px] p-2 rounded-lg flex items-center space-x-1.5">
-          <AlertCircle className="w-4 h-4 text-rose-500" />
-          <span>Giao dịch thanh toán bị từ chối. Kho hàng đã được hoàn trả an toàn.</span>
+        <div className="bg-rose-50 text-rose-700 text-[11px] p-2.5 rounded-xl border border-rose-200 flex items-center space-x-2">
+          <AlertCircle className="w-4 h-4 text-rose-500 flex-shrink-0" />
+          <span>Giao dịch thanh toán bị từ chối. Kho hàng đã được bù trừ hoàn trả nguyên vẹn.</span>
+        </div>
+      );
+    }
+
+    if (status === 'CANCELLED') {
+      return (
+        <div className="bg-slate-100 text-slate-600 text-[11px] p-2.5 rounded-xl flex items-center space-x-2">
+          <Clock className="w-4 h-4 text-slate-400 flex-shrink-0" />
+          <span>Đơn hàng đã được ghi nhận hủy bỏ trong hệ thống.</span>
         </div>
       );
     }
@@ -152,35 +244,135 @@ export default function OrdersPage() {
 
   const isStaff = currentUser?.role === 'STAFF' || currentUser?.role === 'MANAGER';
 
+  // Filtered orders list based on Tab and Search query
+  const filteredOrders = useMemo(() => {
+    return orders.filter((order) => {
+      // Tab filter
+      if (activeTab === 'ACTIVE') {
+        if (!['PENDING', 'CONFIRMED', 'PREPARING', 'READY'].includes(order.status)) {
+          return false;
+        }
+      } else if (activeTab === 'COMPLETED') {
+        if (order.status !== 'COMPLETED') return false;
+      } else if (activeTab === 'FAILED') {
+        if (!['PAYMENT_FAILED', 'CANCELLED'].includes(order.status)) return false;
+      }
+
+      // Search query filter
+      if (searchQuery.trim()) {
+        const q = searchQuery.toLowerCase();
+        const matchCode = order.orderCode.toLowerCase().includes(q);
+        const matchItem = order.items.some((it) =>
+          it.product?.name?.toLowerCase().includes(q),
+        );
+        return matchCode || matchItem;
+      }
+
+      return true;
+    });
+  }, [orders, activeTab, searchQuery]);
+
   return (
     <div className="p-4 space-y-4">
       {/* Header */}
       <div className="flex items-center justify-between pb-2 border-b border-slate-100">
-        <h1 className="text-sm font-bold text-slate-800">
-          {isStaff ? 'Quản lý Đơn hàng (Staff View)' : 'Lịch sử & Theo dõi Đơn'}
-        </h1>
+        <div>
+          <h1 className="text-sm font-bold text-slate-800">
+            {isStaff ? 'Quản lý Đơn hàng (Staff View)' : 'Lịch sử & Theo dõi Đơn'}
+          </h1>
+          <p className="text-[10px] text-slate-400">
+            {orders.length} đơn hàng được đồng bộ
+          </p>
+        </div>
         <button
           onClick={fetchOrders}
-          className="text-slate-500 hover:text-teal-700 p-1 transition"
+          disabled={loading}
+          className="text-slate-500 hover:text-teal-700 p-1.5 rounded-lg border border-slate-200 hover:bg-slate-50 transition flex items-center space-x-1 text-xs"
           title="Tải lại danh sách"
         >
-          <RefreshCw className="w-4 h-4" />
+          <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin text-teal-700' : ''}`} />
+          <span className="text-[10px]">Tải lại</span>
         </button>
       </div>
 
       {/* Staff banner */}
       {isStaff && (
         <div className="bg-indigo-50 border border-indigo-200 text-indigo-900 rounded-xl p-2.5 text-xs flex items-center space-x-2">
-          <span className="font-bold bg-indigo-700 text-white px-1.5 py-0.5 rounded text-[10px]">STAFF</span>
-          <span>Bạn đang xem toàn bộ đơn hàng của cửa hàng và có thể đổi trạng thái phục vụ.</span>
+          <span className="font-bold bg-indigo-700 text-white px-1.5 py-0.5 rounded text-[10px]">
+            STAFF
+          </span>
+          <span>Bạn đang quản lý toàn bộ đơn hàng và có quyền cập nhật tiến trình chế biến.</span>
         </div>
       )}
+
+      {/* Filter Tabs & Search Bar */}
+      <div className="space-y-2">
+        <div className="flex bg-slate-100 p-1 rounded-xl text-[11px] font-bold">
+          <button
+            onClick={() => setActiveTab('ALL')}
+            className={`flex-1 py-1.5 rounded-lg transition ${
+              activeTab === 'ALL'
+                ? 'bg-white text-teal-800 shadow-sm'
+                : 'text-slate-500 hover:text-slate-800'
+            }`}
+          >
+            Tất cả ({orders.length})
+          </button>
+          <button
+            onClick={() => setActiveTab('ACTIVE')}
+            className={`flex-1 py-1.5 rounded-lg transition ${
+              activeTab === 'ACTIVE'
+                ? 'bg-white text-teal-800 shadow-sm'
+                : 'text-slate-500 hover:text-slate-800'
+            }`}
+          >
+            Đang xử lý
+          </button>
+          <button
+            onClick={() => setActiveTab('COMPLETED')}
+            className={`flex-1 py-1.5 rounded-lg transition ${
+              activeTab === 'COMPLETED'
+                ? 'bg-white text-teal-800 shadow-sm'
+                : 'text-slate-500 hover:text-slate-800'
+            }`}
+          >
+            Đã xong
+          </button>
+          <button
+            onClick={() => setActiveTab('FAILED')}
+            className={`flex-1 py-1.5 rounded-lg transition ${
+              activeTab === 'FAILED'
+                ? 'bg-white text-teal-800 shadow-sm'
+                : 'text-slate-500 hover:text-slate-800'
+            }`}
+          >
+            Lỗi / Hủy
+          </button>
+        </div>
+
+        {/* Quick Search */}
+        {orders.length > 0 && (
+          <div className="relative">
+            <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Tìm theo mã đơn hoặc tên món..."
+              className="w-full text-xs pl-8 pr-3 py-2 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-teal-600 bg-white"
+            />
+          </div>
+        )}
+      </div>
 
       {/* Loading */}
       {loading && (
         <div className="space-y-3">
           {[1, 2, 3].map((i) => (
-            <div key={i} className="bg-white rounded-xl p-4 border border-slate-100 shadow-sm animate-pulse space-y-2">
+            <div
+              key={i}
+              className="bg-white rounded-xl p-4 border border-slate-100 shadow-sm animate-pulse space-y-2"
+            >
               <div className="h-4 bg-slate-200 rounded w-1/3" />
               <div className="h-3 bg-slate-200 rounded w-1/2" />
               <div className="h-12 bg-slate-100 rounded" />
@@ -203,30 +395,36 @@ export default function OrdersPage() {
         </div>
       )}
 
-      {/* Empty */}
-      {!loading && !error && orders.length === 0 && (
-        <div className="bg-slate-50 border border-slate-200 rounded-2xl p-8 text-center space-y-3 my-auto min-h-[50vh] flex flex-col justify-center items-center">
+      {/* Empty State */}
+      {!loading && !error && filteredOrders.length === 0 && (
+        <div className="bg-slate-50 border border-slate-200 rounded-2xl p-8 text-center space-y-3 my-auto min-h-[40vh] flex flex-col justify-center items-center">
           <ClipboardList className="w-10 h-10 text-slate-300 mx-auto" />
-          <h3 className="text-sm font-bold text-slate-700">Chưa có đơn hàng nào</h3>
+          <h3 className="text-sm font-bold text-slate-700">
+            {searchQuery ? 'Không tìm thấy đơn hàng phù hợp' : 'Chưa có đơn hàng nào'}
+          </h3>
           <p className="text-xs text-slate-500 max-w-xs">
-            Bạn chưa đặt đơn nào. Hãy vào thực đơn để chọn những món đồ uống tươi ngon nhé!
+            {searchQuery
+              ? 'Hãy thử tìm kiếm với từ khóa khác hoặc xóa bộ lọc tìm kiếm.'
+              : 'Hãy vào thực đơn chọn món đồ uống yêu thích để trải nghiệm dịch vụ nhé!'}
           </p>
-          <Link
-            href="/"
-            className="bg-teal-700 hover:bg-teal-800 text-white text-xs font-bold px-4 py-2 rounded-xl shadow transition"
-          >
-            Đặt món ngay
-          </Link>
+          {!searchQuery && (
+            <Link
+              href="/"
+              className="bg-teal-700 hover:bg-teal-800 text-white text-xs font-bold px-4 py-2 rounded-xl shadow transition"
+            >
+              Đặt món ngay
+            </Link>
+          )}
         </div>
       )}
 
       {/* Orders List */}
-      {!loading && !error && orders.length > 0 && (
+      {!loading && !error && filteredOrders.length > 0 && (
         <div className="space-y-3">
-          {orders.map((order) => (
+          {filteredOrders.map((order) => (
             <div
               key={order.id}
-              className="bg-white rounded-2xl p-4 border border-slate-100 shadow-sm space-y-3"
+              className="bg-white rounded-2xl p-4 border border-slate-100 shadow-sm space-y-3 hover:border-teal-200 transition"
             >
               {/* Order Header */}
               <div className="flex items-center justify-between">
@@ -235,12 +433,7 @@ export default function OrdersPage() {
                     {order.orderCode}
                   </span>
                   <span className="text-[10px] text-slate-400">
-                    {new Date(order.createdAt).toLocaleTimeString('vi-VN', {
-                      hour: '2-digit',
-                      minute: '2-digit',
-                      day: '2-digit',
-                      month: '2-digit',
-                    })}
+                    {formatDateTime(order.createdAt)}
                   </span>
                 </div>
                 {getStatusBadge(order.status)}
@@ -257,7 +450,7 @@ export default function OrdersPage() {
                       {it.product?.name || 'Đồ uống'} (Size {it.size}) x{it.quantity}
                     </span>
                     <span className="font-bold text-slate-900 flex-shrink-0">
-                      {Number(it.lineTotal).toLocaleString('vi-VN')} đ
+                      {formatCurrency(it.lineTotal)}
                     </span>
                   </div>
                 ))}
@@ -273,18 +466,27 @@ export default function OrdersPage() {
                 <div>
                   <span className="text-[10px] text-slate-400 block">Tổng thanh toán:</span>
                   <span className="font-extrabold text-teal-800 text-sm">
-                    {Number(order.totalAmount).toLocaleString('vi-VN')} đ
+                    {formatCurrency(order.totalAmount)}
                   </span>
                 </div>
 
                 {/* Staff Quick Status Update Buttons */}
-                {isStaff && (
+                {isStaff ? (
                   <div className="flex space-x-1.5">
+                    {(order.status === 'CONFIRMED' || order.status === 'PENDING') && (
+                      <button
+                        onClick={() => handleUpdateStatus(order.id, 'CANCELLED')}
+                        disabled={updatingId === order.id}
+                        className="bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 text-[11px] font-bold px-2.5 py-1.5 rounded-lg transition"
+                      >
+                        {updatingId === order.id ? '...' : 'Hủy & Hoàn tiền'}
+                      </button>
+                    )}
                     {order.status === 'CONFIRMED' && (
                       <button
                         onClick={() => handleUpdateStatus(order.id, 'PREPARING')}
                         disabled={updatingId === order.id}
-                        className="bg-amber-600 hover:bg-amber-700 text-white text-[11px] font-bold px-3 py-1.5 rounded-lg shadow-sm"
+                        className="bg-amber-600 hover:bg-amber-700 text-white text-[11px] font-bold px-3 py-1.5 rounded-lg shadow-sm transition active:scale-95"
                       >
                         {updatingId === order.id ? '...' : 'Pha chế'}
                       </button>
@@ -293,7 +495,7 @@ export default function OrdersPage() {
                       <button
                         onClick={() => handleUpdateStatus(order.id, 'READY')}
                         disabled={updatingId === order.id}
-                        className="bg-teal-700 hover:bg-teal-800 text-white text-[11px] font-bold px-3 py-1.5 rounded-lg shadow-sm"
+                        className="bg-teal-700 hover:bg-teal-800 text-white text-[11px] font-bold px-3 py-1.5 rounded-lg shadow-sm transition active:scale-95"
                       >
                         {updatingId === order.id ? '...' : 'Sẵn sàng'}
                       </button>
@@ -302,12 +504,22 @@ export default function OrdersPage() {
                       <button
                         onClick={() => handleUpdateStatus(order.id, 'COMPLETED')}
                         disabled={updatingId === order.id}
-                        className="bg-emerald-700 hover:bg-emerald-800 text-white text-[11px] font-bold px-3 py-1.5 rounded-lg shadow-sm"
+                        className="bg-emerald-700 hover:bg-emerald-800 text-white text-[11px] font-bold px-3 py-1.5 rounded-lg shadow-sm transition active:scale-95"
                       >
                         {updatingId === order.id ? '...' : 'Hoàn tất'}
                       </button>
                     )}
                   </div>
+                ) : (
+                  (order.status === 'CONFIRMED' || order.status === 'PENDING') && (
+                    <button
+                      onClick={() => handleUpdateStatus(order.id, 'CANCELLED')}
+                      disabled={updatingId === order.id}
+                      className="bg-slate-100 hover:bg-rose-50 text-slate-600 hover:text-rose-700 border border-slate-200 hover:border-rose-200 text-[11px] font-semibold px-2.5 py-1 rounded-lg transition"
+                    >
+                      {updatingId === order.id ? '...' : 'Đổi món (Hủy & Hoàn tiền)'}
+                    </button>
+                  )
                 )}
               </div>
             </div>
