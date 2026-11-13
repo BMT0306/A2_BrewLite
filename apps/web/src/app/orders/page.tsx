@@ -94,7 +94,11 @@ export default function OrdersPage() {
       case 'READY':
         return <span className="bg-teal-100 text-teal-800 text-[10px] px-2 py-0.5 rounded-full font-bold">Sẵn sàng nhận</span>;
       case 'COMPLETED':
-        return <span className="bg-emerald-100 text-emerald-800 text-[10px] px-2 py-0.5 rounded-full font-bold">Đã hoàn tất</span>;
+        return (
+          <span className="bg-emerald-100 text-emerald-800 text-[10px] px-2 py-0.5 rounded-full font-bold">
+            Đã hoàn tất ✓
+          </span>
+        );
       case 'CANCELLED':
         return <span className="bg-rose-100 text-rose-800 text-[10px] px-2 py-0.5 rounded-full font-bold">Đã hủy & Hoàn tiền</span>;
       case 'PAYMENT_FAILED':
