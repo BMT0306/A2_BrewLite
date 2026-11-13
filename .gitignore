@@ -39,3 +39,9 @@ Thumbs.db
 # Prisma
 apps/api/prisma/migrations/dev.db
 *.sqlite
+
+# PDF Specs
+*.pdf
+
+# TypeScript cache
+*.tsbuildinfo

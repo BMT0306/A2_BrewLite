@@ -60,7 +60,8 @@ jobs:
           DATABASE_URL: postgresql://brewlite:secret@localhost:5432/brewlite_test_db?schema=public
           JWT_SECRET: test_jwt_secret_key_12345
         run: |
-          npm run test || echo "Unit tests completed."
+          npm run test
+          npm run test:e2e
 
       - name: 8. Build Backend API
         working-directory: ./apps/api
@@ -69,3 +70,9 @@ jobs:
       - name: 9. Build Frontend Web (PWA)
         working-directory: ./apps/web
         run: npm run build
+      - name: 10. Run Automated Postman API Quality Gate
+        env:
+          PORT: 4000
+          DATABASE_URL: postgresql://brewlite:secret@localhost:5432/brewlite_test_db?schema=public
+          JWT_SECRET: test_jwt_secret_key_12345
+        run: npm run test:postman
