@@ -2,7 +2,7 @@
  * @file layout.tsx
  * @description Khung ứng dụng chung (App Container): Header thương hiệu + nội dung trang + Bottom Navigation.
  *              Khai báo PWA manifest & theme color theo đặc tả.
- * @author Thành viên Chính 3 - Frontend & PWA Lead
+ * @author Thành viên Chính 3: Bùi Minh Trung - Frontend & PWA Lead
  * @see docs/ui-ux-frontend-specification.md (Mục 1.1 Mobile-first, 1.2 PWA, 2 Component Hierarchy)
  */
 

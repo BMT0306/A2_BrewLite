@@ -2,7 +2,7 @@
  * @file page.tsx (Trang chủ Menu – "/")
  * @description Xem danh sách đồ uống, lọc theo danh mục & tìm kiếm (FR-01).
  *              Xử lý đủ 4 trạng thái: Loading / Error / Empty / Hết hàng.
- * @author Thành viên Chính 3 - Frontend & PWA Lead
+ * @author Thành viên Chính 3: Bùi Minh Trung - Frontend & PWA Lead
  * @see docs/diagrams/activity-menu-cart.puml (Bước 1 → "Hiển thị danh sách món theo danh mục")
  * @see docs/ui-ux-frontend-specification.md (Mục 3.1)
  */

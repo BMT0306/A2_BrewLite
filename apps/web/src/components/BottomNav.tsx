@@ -1,7 +1,7 @@
 /**
  * @file BottomNav.tsx
  * @description Thanh điều hướng cố định đáy màn hình (Thumb Zone), hiển thị số món trong giỏ.
- * @author Thành viên Chính 3 - Frontend & PWA Lead
+ * @author Thành viên Chính 3: Bùi Minh Trung - Frontend & PWA Lead
  * @see docs/ui-ux-frontend-specification.md (Mục 1.1 - Thumb Zone Optimization)
  */
 

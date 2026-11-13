@@ -1,7 +1,7 @@
 /**
  * @file products/[id]/page.tsx
  * @description Xem chi tiết món, chọn Size / Topping / Số lượng và thêm vào giỏ (FR-02).
- * @author Thành viên Chính 3 - Frontend & PWA Lead
+ * @author Thành viên Chính 3: Bùi Minh Trung - Frontend & PWA Lead
  * @see docs/diagrams/activity-menu-cart.puml (Từ "Gửi request GET /products/:id" → "Lưu món vào Cart Store")
  * @see docs/ui-ux-frontend-specification.md (Mục 3.2)
  */

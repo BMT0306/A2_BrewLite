@@ -3,7 +3,7 @@
  * @description Đặt đơn & Thanh toán (FR-05, FR-06) – gồm 2 giai đoạn đúng theo Sequence Diagram:
  *              (1) POST /orders  → tạo đơn + trừ tồn kho trong Transaction
  *              (2) POST /payments → thanh toán có header Idempotency-Key
- * @author Thành viên Chính 3 - Frontend & PWA Lead
+ * @author Thành viên Chính 3: Bùi Minh Trung - Frontend & PWA Lead
  * @see docs/diagrams/sequence-checkout.puml
  * @see docs/ui-ux-frontend-specification.md (Mục 3.5)
  */

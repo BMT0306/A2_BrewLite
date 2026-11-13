@@ -7,6 +7,7 @@
 | Thuộc tính | Chi tiết |
 | :--- | :--- |
 | **Mã thành viên** | **Chính 3** |
+| **Họ và tên** | **Bùi Minh Trung** |
 | **Vai trò chuyên môn** | **Frontend & PWA Lead** |
 | **Tài liệu phụ trách** | `docs/ui-ux-frontend-specification.md`, `docs/diagrams/activity-menu-cart.puml` / `.svg`, `docs/diagrams/activity-auth-order-tracking.puml` / `.svg` |
 | **Phần code phụ trách** | Khung PWA (`manifest.json`, `layout.tsx`), Trang chủ Menu (`page.tsx`), Tùy biến món (`products/[id]/page.tsx`), Giỏ hàng & Thanh toán (`cart/page.tsx`, `checkout/page.tsx`, `useCartStore.ts`) |

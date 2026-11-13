@@ -1,7 +1,7 @@
 /**
  * @file format.ts
  * @description Hàm tiện ích định dạng tiền tệ dùng chung cho các màn hình Frontend.
- * @author Thành viên Chính 3 - Frontend & PWA Lead
+ * @author Thành viên Chính 3: Bùi Minh Trung - Frontend & PWA Lead
  */
 
 /** 35000 → "35.000 đ" */

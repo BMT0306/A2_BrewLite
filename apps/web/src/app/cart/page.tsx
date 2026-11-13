@@ -1,7 +1,7 @@
 /**
  * @file cart/page.tsx
  * @description Giỏ hàng & Tạm tính (FR-03): sửa số lượng, xóa món, tính tổng tiền, chuyển sang thanh toán.
- * @author Thành viên Chính 3 - Frontend & PWA Lead
+ * @author Thành viên Chính 3: Bùi Minh Trung - Frontend & PWA Lead
  * @see docs/diagrams/activity-auth-order-tracking.puml (Bước "Từ Giỏ hàng nhấn Thanh toán" → kiểm tra JWT)
  * @see docs/ui-ux-frontend-specification.md (Mục 3.3)
  */

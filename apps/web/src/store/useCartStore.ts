@@ -1,7 +1,7 @@
 /**
  * @file useCartStore.ts
  * @description Kho trạng thái Giỏ hàng (FR-03) – lưu bền vững vào LocalStorage.
- * @author Thành viên Chính 3 - Frontend & PWA Lead
+ * @author Thành viên Chính 3: Bùi Minh Trung - Frontend & PWA Lead
  * @see docs/ui-ux-frontend-specification.md (Mục 4 - State Management)
  * @see docs/diagrams/activity-menu-cart.puml ("Lưu món vào Cart Store (LocalStorage) & Cập nhật tổng tiền")
  */
