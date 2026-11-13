@@ -2,11 +2,13 @@
   "name": "BrewLite Coffee & Tea Ordering",
   "short_name": "BrewLite",
   "description": "Hệ thống đặt món và thanh toán đồ uống trực tuyến chuẩn Mobile-first PWA",
+  "lang": "vi",
   "start_url": "/",
+  "scope": "/",
   "display": "standalone",
+  "orientation": "portrait",
   "background_color": "#f8fafc",
   "theme_color": "#0f766e",
-  "orientation": "portrait",
   "icons": [
     {
       "src": "/icon-192.png",
