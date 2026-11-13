@@ -1,298 +1,227 @@
+/**
+ * @file checkout/page.tsx
+ * @description Đặt đơn & Thanh toán (FR-05, FR-06) – gồm 2 giai đoạn đúng theo Sequence Diagram:
+ *              (1) POST /orders  → tạo đơn + trừ tồn kho trong Transaction
+ *              (2) POST /payments → thanh toán có header Idempotency-Key
+ * @author Thành viên Chính 3 - Frontend & PWA Lead
+ * @see docs/diagrams/sequence-checkout.puml
+ * @see docs/ui-ux-frontend-specification.md (Mục 3.5)
+ */
+
 'use client';
 
-import React, { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { ArrowLeft, CreditCard, Wallet, AlertCircle, CheckCircle2, ShieldCheck, Sparkles } from 'lucide-react';
-import { useCartStore } from '../../store/useCartStore';
+import { useRouter } from 'next/navigation';
+import { Wallet, CreditCard, AlertCircle, CheckCircle2 } from 'lucide-react';
 import { apiFetch, getStoredToken } from '../../lib/api';
+import { formatVND } from '../../lib/format';
+import { useCartStore, useCartHydrated, calcLineTotal } from '../../store/useCartStore';
+
+type PaymentMethod = 'WALLET' | 'CARD';
+
+interface CreateOrderResponse {
+  orderId: string;
+  orderCode: string;
+  totalAmount: number;
+}
+
+const PAYMENT_METHODS = [
+  { id: 'WALLET' as const, label: 'Ví điện tử', sub: 'MoMo / ZaloPay', icon: Wallet },
+  { id: 'CARD' as const, label: 'Thẻ ngân hàng', sub: 'Visa / Master', icon: CreditCard },
+];
 
 export default function CheckoutPage() {
   const router = useRouter();
+  const hydrated = useCartHydrated();
   const { items, getSubtotal, clearCart } = useCartStore();
 
-  const [paymentMethod, setPaymentMethod] = useState<'WALLET' | 'CARD'>('WALLET');
+  const [method, setMethod] = useState<PaymentMethod>('WALLET');
   const [note, setNote] = useState('');
-  const [voucherCode, setVoucherCode] = useState('WELCOME10');
-  const [simulateFailure, setSimulateFailure] = useState(false);
-
+  const [simulateFailure, setSimulateFailure] = useState(false); // Bảng giả lập cho giảng viên
   const [submitting, setSubmitting] = useState(false);
-  const [errorMsg, setErrorMsg] = useState<string | null>(null);
-  const [successInfo, setSuccessInfo] = useState<any>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [paidOrderCode, setPaidOrderCode] = useState<string | null>(null);
 
-  const subtotal = getSubtotal();
-  const discount = voucherCode.toUpperCase().trim() === 'WELCOME10' ? Math.min(subtotal * 0.1, 50000) : 0;
-  const totalAmount = Math.max(0, subtotal - discount);
-
+  // Activity diagram: chưa có JWT → chuyển tới trang đăng nhập rồi quay lại /checkout
   useEffect(() => {
-    const token = getStoredToken();
-    if (!token) {
-      router.push('/login?redirect=/checkout');
-    }
+    if (!getStoredToken()) router.replace('/login?redirect=/checkout');
   }, [router]);
 
-  if (items.length === 0 && !successInfo) {
-    return (
-      <div className="p-6 text-center space-y-3 my-auto min-h-[60vh] flex flex-col justify-center items-center">
-        <p className="text-xs text-slate-500">Giỏ hàng rỗng, vui lòng chọn món trước khi đặt đơn.</p>
-        <Link href="/" className="text-xs text-teal-700 font-bold hover:underline">
-          Quay lại thực đơn
-        </Link>
-      </div>
-    );
-  }
+  const handlePlaceAndPay = async () => {
+    setSubmitting(true);
+    setError(null);
 
-  // Generate standard random UUIDv4
-  const generateUUID = () => {
-    return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
-      const r = (Math.random() * 16) | 0;
-      const v = c === 'x' ? r : (r & 0x3) | 0x8;
-      return v.toString(16);
-    });
-  };
-
-  const handlePlaceAndPayOrder = async () => {
     try {
-      setSubmitting(true);
-      setErrorMsg(null);
-
-      // Phase 1: Call POST /orders inside Database Transaction
-      const orderPayload = {
-        items: items.map((it) => ({
-          productId: it.productId,
-          size: it.size,
-          toppings: it.toppings,
-          quantity: it.quantity,
-          unitPrice: it.unitPrice,
-        })),
-        note: note.trim() || undefined,
-        promotionCode: voucherCode.trim() || undefined,
-      };
-
-      const orderRes = await apiFetch<any>('/orders', {
+      // ===== Giai đoạn 1: Tạo đơn hàng & trừ tồn kho (Transaction ở Backend) =====
+      const order = await apiFetch<CreateOrderResponse>('/orders', {
         method: 'POST',
-        body: JSON.stringify(orderPayload),
+        body: JSON.stringify({
+          items: items.map((it) => ({
+            productId: it.productId,
+            size: it.size,
+            toppings: it.toppings,
+            quantity: it.quantity,
+            unitPrice: it.unitPrice,
+          })),
+          note: note.trim() || undefined,
+        }),
       });
 
-      const orderId = orderRes.orderId;
-
-      // Phase 2: Call POST /payments with Idempotency-Key header
-      const idempotencyKey = generateUUID();
-
-      const paymentRes = await apiFetch<any>(
+      // ===== Giai đoạn 2: Thanh toán kèm Idempotency-Key (UUID mới cho mỗi lần đặt) =====
+      const idempotencyKey = crypto.randomUUID();
+      await apiFetch(
         '/payments',
-        {
-          method: 'POST',
-          body: JSON.stringify({
-            orderId,
-            method: paymentMethod,
-            simulateFailure,
-          }),
-        },
+        { method: 'POST', body: JSON.stringify({ orderId: order.orderId, method, simulateFailure }) },
         idempotencyKey,
       );
 
-      // Success
+      // 200 OK → CONFIRMED + PAID: làm sạch giỏ & chuyển sang trang theo dõi đơn
       clearCart();
-      setSuccessInfo(paymentRes);
-      setTimeout(() => {
-        router.push('/orders');
-      }, 1500);
+      setPaidOrderCode(order.orderCode);
+      setTimeout(() => router.push('/orders'), 1500);
     } catch (err: any) {
-      console.error('Checkout error:', err);
-      setErrorMsg(
-        err.message || 'Giao dịch đặt đơn hoặc thanh toán không thành công. Vui lòng kiểm tra lại.',
-      );
+      setError(getErrorMessage(err));
+      if (err.status === 401) router.push('/login?redirect=/checkout');
     } finally {
       setSubmitting(false);
     }
   };
 
-  return (
-    <div className="p-4 space-y-4 pb-28">
-      {/* Header */}
-      <div className="flex items-center justify-between pb-2 border-b border-slate-100">
-        <Link href="/cart" className="text-slate-600 hover:text-slate-900">
-          <ArrowLeft className="w-5 h-5" />
+  if (!hydrated) return null;
+
+  // Thanh toán thành công
+  if (paidOrderCode) {
+    return (
+      <div className="p-6 min-h-[60vh] flex flex-col items-center justify-center text-center gap-2">
+        <CheckCircle2 className="w-14 h-14 text-green-600" />
+        <h2 className="text-base font-bold text-slate-800">Đặt hàng & thanh toán thành công!</h2>
+        <p className="text-sm text-slate-600">Mã đơn: {paidOrderCode}</p>
+        <p className="text-xs text-slate-400">Đang chuyển tới trang theo dõi đơn...</p>
+      </div>
+    );
+  }
+
+  if (items.length === 0) {
+    return (
+      <div className="p-6 text-center space-y-3">
+        <p className="text-sm text-slate-500">Giỏ hàng trống, vui lòng chọn món trước.</p>
+        <Link href="/" className="text-sm text-teal-700 font-bold">
+          ← Quay lại thực đơn
         </Link>
-        <h1 className="text-sm font-bold text-slate-800">Xác nhận & Thanh toán</h1>
-        <div className="w-5" />
       </div>
+    );
+  }
 
-      {/* Success Notification */}
-      {successInfo && (
-        <div className="bg-emerald-50 border border-emerald-300 rounded-2xl p-5 text-center space-y-2 animate-bounce">
-          <CheckCircle2 className="w-10 h-10 text-emerald-600 mx-auto" />
-          <h3 className="text-sm font-bold text-emerald-900">Đặt hàng & Thanh toán Thành công!</h3>
-          <p className="text-xs text-emerald-700">Mã đơn: {successInfo.orderId.slice(0, 8)}...</p>
-          <p className="text-[11px] text-emerald-600">Đang chuyển tới màn hình theo dõi đơn...</p>
+  return (
+    <div className="p-4 space-y-4">
+      <h1 className="text-base font-bold text-slate-800">Xác nhận & Thanh toán</h1>
+
+      {error && (
+        <div className="bg-red-50 border border-red-200 text-red-700 rounded-xl p-3 text-sm flex gap-2">
+          <AlertCircle className="w-4 h-4 flex-shrink-0 mt-0.5" />
+          <span>{error}</span>
         </div>
       )}
 
-      {/* Error alert */}
-      {errorMsg && (
-        <div className="bg-rose-50 border border-rose-200 text-rose-700 rounded-xl p-3.5 text-xs flex space-x-2">
-          <AlertCircle className="w-4 h-4 text-rose-500 flex-shrink-0 mt-0.5" />
-          <div className="leading-relaxed">{errorMsg}</div>
+      {/* Tóm tắt đơn hàng */}
+      <Card title={`Món đã chọn (${items.length})`}>
+        {items.map((it) => (
+          <div key={it.id} className="flex justify-between text-sm py-1">
+            <span className="text-slate-700">
+              {it.name} <span className="text-slate-400">x{it.quantity} · Size {it.size}</span>
+            </span>
+            <span className="font-semibold">{formatVND(calcLineTotal(it))}</span>
+          </div>
+        ))}
+        <div className="flex justify-between border-t mt-2 pt-2 font-extrabold">
+          <span>Tổng thanh toán</span>
+          <span className="text-teal-700">{formatVND(getSubtotal())}</span>
         </div>
-      )}
+      </Card>
 
-      {/* Evaluator Simulation Control Panel */}
-      <div className="bg-teal-50 border border-teal-200 rounded-xl p-3 space-y-2">
-        <div className="flex items-center space-x-1.5 text-teal-900 font-bold text-xs">
-          <Sparkles className="w-4 h-4 text-teal-700" />
-          <span>Bảng điều khiển Giả lập Nghiệm thu (Giảng viên / QA):</span>
-        </div>
-        <p className="text-[11px] text-teal-800 leading-tight">
-          Chọn kịch bản bên dưới để kiểm thử tính năng bù trừ hoàn kho (Compensating Transaction):
-        </p>
-        <div className="grid grid-cols-2 gap-2 pt-1">
-          <button
-            type="button"
-            onClick={() => setSimulateFailure(false)}
-            className={`p-2 rounded-lg text-center text-xs font-bold border transition ${
-              !simulateFailure
-                ? 'bg-teal-700 text-white border-teal-700 shadow-sm'
-                : 'bg-white text-slate-700 border-slate-200'
-            }`}
-          >
-            ✓ Thanh toán Thành công
-          </button>
-          <button
-            type="button"
-            onClick={() => setSimulateFailure(true)}
-            className={`p-2 rounded-lg text-center text-xs font-bold border transition ${
-              simulateFailure
-                ? 'bg-rose-600 text-white border-rose-600 shadow-sm'
-                : 'bg-white text-slate-700 border-slate-200'
-            }`}
-          >
-            ⚠ Giả lập Thất bại (Hoàn kho)
-          </button>
-        </div>
-      </div>
-
-      {/* Order Items Preview */}
-      <div className="bg-white rounded-xl p-3 border border-slate-100 shadow-sm space-y-2">
-        <h3 className="text-xs font-bold text-slate-700">Món đã chọn ({items.length})</h3>
-        <div className="divide-y divide-slate-100 text-xs">
-          {items.map((it) => (
-            <div key={it.id} className="py-2 flex justify-between items-center">
-              <div>
-                <span className="font-semibold text-slate-800">{it.name}</span>
-                <span className="text-slate-400 text-[10px] block">
-                  x{it.quantity} (Size {it.size})
-                </span>
-              </div>
-              <span className="font-bold text-slate-900">{it.lineTotal.toLocaleString('vi-VN')} đ</span>
-            </div>
+      {/* Phương thức thanh toán */}
+      <Card title="Phương thức thanh toán">
+        <div className="grid grid-cols-2 gap-2">
+          {PAYMENT_METHODS.map(({ id, label, sub, icon: Icon }) => (
+            <button
+              key={id}
+              onClick={() => setMethod(id)}
+              className={`p-3 rounded-xl border flex items-center gap-2 text-left ${
+                method === id ? 'border-teal-700 bg-teal-50' : 'border-slate-200'
+              }`}
+            >
+              <Icon className="w-5 h-5 text-teal-700" />
+              <span>
+                <span className="block text-sm font-bold">{label}</span>
+                <span className="block text-[11px] text-slate-500">{sub}</span>
+              </span>
+            </button>
           ))}
         </div>
-      </div>
+      </Card>
 
-      {/* Payment Method Selector */}
-      <div className="bg-white rounded-xl p-3.5 border border-slate-100 shadow-sm space-y-2">
-        <h3 className="text-xs font-bold text-slate-700">Phương thức thanh toán</h3>
-        <div className="grid grid-cols-2 gap-2">
-          <div
-            onClick={() => setPaymentMethod('WALLET')}
-            className={`p-3 rounded-xl border flex items-center space-x-2.5 cursor-pointer transition ${
-              paymentMethod === 'WALLET'
-                ? 'border-teal-700 bg-teal-50/60 text-teal-800 font-bold'
-                : 'border-slate-200 text-slate-700'
-            }`}
+      {/* Ghi chú */}
+      <Card title="Ghi chú cho Barista">
+        <input
+          value={note}
+          onChange={(e) => setNote(e.target.value)}
+          placeholder="Ví dụ: ít đá, giao tại bàn số 5..."
+          className="w-full border border-slate-200 rounded-lg p-2 text-sm focus:outline-none focus:ring-1 focus:ring-teal-700"
+        />
+      </Card>
+
+      {/* Bảng điều khiển giả lập (Demo Control Panel) cho hội đồng nghiệm thu */}
+      <Card title="Giả lập kết quả thanh toán (Demo)">
+        <div className="grid grid-cols-2 gap-2 text-sm font-bold">
+          <button
+            onClick={() => setSimulateFailure(false)}
+            className={`p-2 rounded-lg border ${!simulateFailure ? 'bg-green-600 text-white' : 'bg-white'}`}
           >
-            <Wallet className="w-4 h-4 text-teal-700" />
-            <div className="text-xs">
-              <span className="block leading-none">Ví điện tử</span>
-              <span className="text-[10px] text-slate-500 leading-tight">MoMo / ZaloPay</span>
-            </div>
-          </div>
-
-          <div
-            onClick={() => setPaymentMethod('CARD')}
-            className={`p-3 rounded-xl border flex items-center space-x-2.5 cursor-pointer transition ${
-              paymentMethod === 'CARD'
-                ? 'border-teal-700 bg-teal-50/60 text-teal-800 font-bold'
-                : 'border-slate-200 text-slate-700'
-            }`}
+            ✓ Thành công
+          </button>
+          <button
+            onClick={() => setSimulateFailure(true)}
+            className={`p-2 rounded-lg border ${simulateFailure ? 'bg-red-600 text-white' : 'bg-white'}`}
           >
-            <CreditCard className="w-4 h-4 text-teal-700" />
-            <div className="text-xs">
-              <span className="block leading-none">Thẻ ngân hàng</span>
-              <span className="text-[10px] text-slate-500 leading-tight">Visa / Napas</span>
-            </div>
-          </div>
+            ✗ Thất bại (hoàn kho)
+          </button>
         </div>
-      </div>
+      </Card>
 
-      {/* Note & Voucher */}
-      <div className="bg-white rounded-xl p-3.5 border border-slate-100 shadow-sm space-y-3 text-xs">
-        <div>
-          <label className="font-bold text-slate-700 block mb-1">Mã khuyến mãi (Voucher)</label>
-          <div className="flex space-x-2">
-            <input
-              type="text"
-              value={voucherCode}
-              onChange={(e) => setVoucherCode(e.target.value)}
-              placeholder="Nhập WELCOME10..."
-              className="flex-1 text-xs p-2 rounded-lg border border-slate-200 uppercase font-mono font-bold focus:outline-none focus:ring-1 focus:ring-teal-700"
-            />
-            <button
-              type="button"
-              className="bg-slate-100 text-slate-700 text-xs px-3 py-2 rounded-lg font-semibold hover:bg-slate-200"
-            >
-              Áp dụng
-            </button>
-          </div>
-        </div>
+      <button
+        onClick={handlePlaceAndPay}
+        disabled={submitting}
+        className="w-full bg-teal-700 text-white font-bold text-sm py-3.5 rounded-xl disabled:opacity-50"
+      >
+        {submitting ? 'Đang xử lý giao dịch...' : error ? 'Thử thanh toán lại' : 'Đặt đơn & Thanh toán'}
+      </button>
+    </div>
+  );
+}
 
-        <div>
-          <label className="font-bold text-slate-700 block mb-1">Ghi chú cho Barista</label>
-          <input
-            type="text"
-            value={note}
-            onChange={(e) => setNote(e.target.value)}
-            placeholder="Ví dụ: Ít đá, nhiều đường, giao tại bàn số 5..."
-            className="w-full text-xs p-2 rounded-lg border border-slate-200 focus:outline-none focus:ring-1 focus:ring-teal-700"
-          />
-        </div>
-      </div>
+/**
+ * Ánh xạ mã lỗi HTTP sang thông báo cho khách hàng (theo các nhánh "alt" của Sequence Diagram).
+ * Khi lỗi 402, Backend đã hoàn kho & đơn cũ chuyển PAYMENT_FAILED → bấm "Thử lại" sẽ tạo đơn mới.
+ */
+function getErrorMessage(err: any): string {
+  switch (err.status) {
+    case 401:
+      return 'Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.';
+    case 409: // Hết hàng – Backend đã ROLLBACK, nội dung lỗi kèm tên món cần cập nhật
+      return err.message || 'Sản phẩm không đủ tồn kho, vui lòng cập nhật giỏ hàng.';
+    case 402:
+      return 'Thanh toán thất bại. Tồn kho đã được hoàn trả, bạn có thể thử thanh toán lại.';
+    default:
+      return err.message || 'Giao dịch không thành công, vui lòng thử lại.';
+  }
+}
 
-      {/* Bill Calculation */}
-      <div className="bg-slate-50 rounded-xl p-3.5 border border-slate-200 space-y-1.5 text-xs">
-        <div className="flex justify-between text-slate-600">
-          <span>Tạm tính tiền món:</span>
-          <span>{subtotal.toLocaleString('vi-VN')} đ</span>
-        </div>
-        {discount > 0 && (
-          <div className="flex justify-between text-emerald-700 font-semibold">
-            <span>Giảm giá (WELCOME10):</span>
-            <span>-{discount.toLocaleString('vi-VN')} đ</span>
-          </div>
-        )}
-        <div className="border-t border-slate-200 pt-2 flex justify-between font-extrabold text-sm text-slate-900">
-          <span>Tổng thanh toán:</span>
-          <span className="text-teal-800">{totalAmount.toLocaleString('vi-VN')} đ</span>
-        </div>
-      </div>
-
-      {/* Fixed Checkout CTA */}
-      <div className="fixed bottom-16 left-0 right-0 max-w-md mx-auto p-4 bg-white/95 backdrop-blur-md border-t border-slate-200 z-40">
-        <button
-          onClick={handlePlaceAndPayOrder}
-          disabled={submitting}
-          className="w-full bg-teal-700 hover:bg-teal-800 text-white py-3.5 px-4 rounded-xl font-bold text-xs flex items-center justify-between shadow-lg transition active:scale-95 disabled:opacity-50"
-        >
-          <div className="flex items-center space-x-2">
-            <ShieldCheck className="w-4 h-4 text-teal-300" />
-            <span>{submitting ? 'Đang thực hiện giao dịch...' : 'Xác nhận Đặt & Thanh toán'}</span>
-          </div>
-          <span className="font-extrabold bg-teal-900/60 px-2.5 py-1 rounded-lg">
-            {totalAmount.toLocaleString('vi-VN')} đ
-          </span>
-        </button>
-      </div>
+function Card({ title, children }: { title: string; children: React.ReactNode }) {
+  return (
+    <div className="bg-white rounded-xl p-3.5 border border-slate-100 shadow-sm">
+      <h2 className="text-sm font-bold text-slate-700 mb-2">{title}</h2>
+      {children}
     </div>
   );
 }
