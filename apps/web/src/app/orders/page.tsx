@@ -95,6 +95,8 @@ export default function OrdersPage() {
         return <span className="bg-teal-100 text-teal-800 text-[10px] px-2 py-0.5 rounded-full font-bold">Sẵn sàng nhận</span>;
       case 'COMPLETED':
         return <span className="bg-emerald-100 text-emerald-800 text-[10px] px-2 py-0.5 rounded-full font-bold">Đã hoàn tất</span>;
+      case 'CANCELLED':
+        return <span className="bg-rose-100 text-rose-800 text-[10px] px-2 py-0.5 rounded-full font-bold">Đã hủy & Hoàn tiền</span>;
       case 'PAYMENT_FAILED':
         return <span className="bg-rose-100 text-rose-800 text-[10px] px-2 py-0.5 rounded-full font-bold">Thanh toán lỗi (Hoàn kho)</span>;
       default:
@@ -106,6 +108,20 @@ export default function OrdersPage() {
     const steps = ['CONFIRMED', 'PREPARING', 'READY', 'COMPLETED'];
     const labels = ['Xác nhận', 'Pha chế', 'Sẵn sàng', 'Đã lấy'];
     const currentIndex = steps.indexOf(status);
+
+    if (status === 'CANCELLED') {
+      return (
+        <div className="bg-rose-50 text-rose-700 text-[11px] p-2.5 rounded-xl border border-rose-200 flex items-center justify-between">
+          <div className="flex items-center space-x-1.5">
+            <AlertCircle className="w-4 h-4 text-rose-500 shrink-0" />
+            <span>Đơn đã hủy thành công. Tiền đã hoàn lại ví & kho hàng đã được bù trừ.</span>
+          </div>
+          <Link href="/" className="text-[11px] bg-rose-600 hover:bg-rose-700 text-white font-bold px-2.5 py-1 rounded-lg shrink-0 ml-2 transition">
+            Đặt lại món đúng
+          </Link>
+        </div>
+      );
+    }
 
     if (status === 'PAYMENT_FAILED') {
       return (
@@ -278,8 +294,17 @@ export default function OrdersPage() {
                 </div>
 
                 {/* Staff Quick Status Update Buttons */}
-                {isStaff && (
+                {isStaff ? (
                   <div className="flex space-x-1.5">
+                    {(order.status === 'CONFIRMED' || order.status === 'PENDING') && (
+                      <button
+                        onClick={() => handleUpdateStatus(order.id, 'CANCELLED')}
+                        disabled={updatingId === order.id}
+                        className="bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 text-[11px] font-bold px-2.5 py-1.5 rounded-lg transition"
+                      >
+                        {updatingId === order.id ? '...' : 'Hủy & Hoàn tiền'}
+                      </button>
+                    )}
                     {order.status === 'CONFIRMED' && (
                       <button
                         onClick={() => handleUpdateStatus(order.id, 'PREPARING')}
@@ -308,6 +333,16 @@ export default function OrdersPage() {
                       </button>
                     )}
                   </div>
+                ) : (
+                  (order.status === 'CONFIRMED' || order.status === 'PENDING') && (
+                    <button
+                      onClick={() => handleUpdateStatus(order.id, 'CANCELLED')}
+                      disabled={updatingId === order.id}
+                      className="bg-slate-100 hover:bg-rose-50 text-slate-600 hover:text-rose-700 border border-slate-200 hover:border-rose-200 text-[11px] font-semibold px-2.5 py-1 rounded-lg transition"
+                    >
+                      {updatingId === order.id ? '...' : 'Đổi món (Hủy & Hoàn tiền)'}
+                    </button>
+                  )
                 )}
               </div>
             </div>
