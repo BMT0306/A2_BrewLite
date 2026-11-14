@@ -17,7 +17,13 @@
     "test:postman": "node scripts/run-postman-suite.js",
     "test:all": "npm run test:backend && npm run test:postman",
     "lint": "npm run lint --prefix apps/api && npm run lint --prefix apps/web",
+    "start:demo": "node scripts/start-demo.js",
+    "tunnel": "node scripts/start-demo.js",
+    "tunnel:fixed": "node scripts/tunnel.cjs",
     "start:api": "node apps/api/dist/src/main.js",
+    "start:web": "npm run start --prefix apps/web",
+    "dev:api": "npm run start:dev --prefix apps/api",
+    "dev:web": "npm run dev --prefix apps/web",
     "prisma:generate": "npx --prefix apps/api prisma generate",
     "docker:up": "docker compose up --build -d",
     "docker:down": "docker compose down",
@@ -25,6 +31,9 @@
     "render:diagrams": "node scripts/render-diagrams.mjs"
   },
   "devDependencies": {
-    "@types/node": "^20.11.0"
+    "@types/node": "^20.11.0",
+    "localtunnel": "^2.0.2",
+    "newman": "^6.2.3",
+    "qrcode-terminal": "^0.12.0"
   }
 }

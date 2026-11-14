@@ -1,5 +1,5 @@
 @startuml sequence-checkout
-title BrewLite - Sequence Diagram: Đặt và Thanh toán Đơn hàng (Task 2.2)
+title BrewLite - Sequence Diagram: Đặt và Thanh toán Đơn hàng (Task 2.2 - Phụ trách: Trần Lê Minh Tâm - Chính 1)
 autonumber
 
 actor "Customer" as Customer

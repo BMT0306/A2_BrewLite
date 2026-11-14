@@ -1,8 +1,12 @@
 # HƯỚNG DẪN KIỂM THỬ TOÀN DIỆN VÀ TRÌNH DIỄN CI/CD (BREWLITE)
 
-> **Dành cho:** Kỹ sư Trưởng / DevOps Lead & Nhóm Phát triển BrewLite  
-> **Học phần:** Công nghệ Phần mềm (Software Engineering) - Assignment 2  
-> **Mục tiêu:** Đáp ứng trọn vẹn yêu cầu kiểm thử Backend, xác minh Postman 100% Pass và kịch bản trình chiếu CI/CD cho Giảng viên.
+### THÔNG TIN HỒ SƠ THỰC HIỆN (PHÂN CÔNG CHẤM TIẾN ĐỘ TUẦN 9)
+| Thuộc tính | Chi tiết |
+| :--- | :--- |
+| **Họ và tên sinh viên** | **Trần Lê Minh Tâm** |
+| **Mã thành viên** | **Chính 1** |
+| **Vai trò chuyên môn** | **System Architect & DevOps Lead** |
+| **Tài liệu & Kịch bản phụ trách** | `docs/testing.md`, Newman CLI runner `scripts/run-postman-suite.js`, Bộ test Postman `tests/postman/` |
 
 ---
 

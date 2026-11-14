@@ -1,5 +1,5 @@
 @startuml deployment-prod
-title BrewLite - UML Deployment Diagram (Local, CI/CD & Production)
+title BrewLite - UML Deployment Diagram (Local, CI/CD & Production - Phụ trách: Trần Lê Minh Tâm - Chính 1)
 
 node "Client Device (Mobile / Desktop)" as ClientNode {
   artifact "Mobile Web Browser / PWA\n(Next.js Client + Service Worker)" as PWA

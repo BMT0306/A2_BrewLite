@@ -6,6 +6,7 @@
 ### THÔNG TIN HỒ SƠ THỰC HIỆN (PHÂN CÔNG CHẤM TIẾN ĐỘ TUẦN 9)
 | Thuộc tính | Chi tiết |
 | :--- | :--- |
+| **Họ và tên sinh viên** | **Bùi Minh Trung** |
 | **Mã thành viên** | **Chính 3** |
 | **Họ và tên** | **Bùi Minh Trung** |
 | **Vai trò chuyên môn** | **Frontend & PWA Lead** |

@@ -75,4 +75,6 @@ jobs:
           PORT: 4000
           DATABASE_URL: postgresql://brewlite:secret@localhost:5432/brewlite_test_db?schema=public
           JWT_SECRET: test_jwt_secret_key_12345
-        run: npm run test:postman
+        run: |
+          npm install newman --no-audit --no-fund || true
+          npm run test:postman
