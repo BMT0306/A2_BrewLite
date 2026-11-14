@@ -9,28 +9,50 @@ const { spawn, execSync } = require('child_process');
 const http = require('http');
 const path = require('path');
 
+const fs = require('fs');
+
 const PORT = 4000;
-const HEALTH_URL = `http://localhost:${PORT}/health`;
+const HEALTH_URL = `http://127.0.0.1:${PORT}/health`;
 const COLLECTION_PATH = path.join(__dirname, '..', 'tests', 'postman', 'BrewLite_API.postman_collection.json');
 const ENV_PATH = path.join(__dirname, '..', 'tests', 'postman', 'BrewLite_Local.postman_environment.json');
 
 function checkServerReady(url) {
   return new Promise((resolve) => {
-    http.get(url, (res) => {
+    const req = http.get(url, (res) => {
       resolve(res.statusCode === 200);
-    }).on('error', () => {
+    });
+    req.on('error', () => {
+      resolve(false);
+    });
+    req.setTimeout(1500, () => {
+      req.destroy();
       resolve(false);
     });
   });
 }
 
-async function waitForServer(retries = 15, delay = 1000) {
+async function waitForServer(retries = 35, delay = 1000) {
   for (let i = 0; i < retries; i++) {
     const isReady = await checkServerReady(HEALTH_URL);
     if (isReady) return true;
+    process.stdout.write('.');
     await new Promise((r) => setTimeout(r, delay));
   }
   return false;
+}
+
+function freePort(port) {
+  try {
+    const output = execSync(`netstat -ano | findstr LISTENING | findstr :${port}`, { encoding: 'utf-8', stdio: ['pipe', 'pipe', 'ignore'] });
+    const lines = output.trim().split('\n');
+    for (const line of lines) {
+      const parts = line.trim().split(/\s+/);
+      const pid = parts[parts.length - 1];
+      if (pid && pid !== '0' && !isNaN(Number(pid)) && Number(pid) !== process.pid) {
+        try { execSync(`taskkill /F /PID ${pid}`, { stdio: 'ignore' }); } catch (e) {}
+      }
+    }
+  } catch (err) {}
 }
 
 async function main() {
@@ -38,48 +60,94 @@ async function main() {
   console.log('🚀 BREWLITE REST API - POSTMAN AUTOMATED TEST SUITE RUNNER');
   console.log('===============================================================\n');
 
-  let serverProcess = null;
-  const isAlreadyRunning = await checkServerReady(HEALTH_URL);
+  const rootDir = path.join(__dirname, '..');
+  const apiDir = path.join(rootDir, 'apps', 'api');
+  const serverEntry = path.join(apiDir, 'dist', 'src', 'main.js');
 
-  if (isAlreadyRunning) {
-    console.log(`[Info] Backend API server đang chạy trên cổng ${PORT}. Sẵn sàng kiểm thử.`);
-  } else {
-    console.log(`[Info] Đang khởi động Backend API server trên cổng ${PORT}...`);
-    const serverEntry = path.join(__dirname, '..', 'apps', 'api', 'dist', 'src', 'main.js');
-    serverProcess = spawn('node', [serverEntry], {
-      stdio: 'pipe',
-      detached: false,
-    });
-
-    const ready = await waitForServer(20, 1000);
-    if (!ready) {
-      console.error('[Error] Không thể khởi động Backend API server. Vui lòng kiểm tra lại build.');
-      if (serverProcess) serverProcess.kill();
-      process.exit(1);
-    }
-    console.log('[Success] Backend API server đã sẵn sàng!\n');
+  // Đảm bảo mã nguồn API đã được biên dịch sẵn sàng
+  if (!fs.existsSync(serverEntry)) {
+    console.log('[Info] Đang biên dịch mã nguồn Backend API...');
+    execSync('npm run build:api', { cwd: rootDir, stdio: 'inherit' });
   }
+
+  // Giải phóng cổng 4000 và đợi OS thu hồi socket
+  freePort(PORT);
+  await new Promise((r) => setTimeout(r, 1000));
+
+  console.log(`[Info] Đang khởi động Backend API server trên cổng ${PORT}...`);
+  let apiLogs = '';
+  const serverProcess = spawn('node', [serverEntry], {
+    cwd: apiDir,
+    stdio: ['ignore', 'pipe', 'pipe'],
+    env: { ...process.env, PORT: '4000' },
+  });
+
+  serverProcess.stdout.on('data', (d) => {
+    apiLogs += d.toString();
+  });
+  serverProcess.stderr.on('data', (d) => {
+    apiLogs += d.toString();
+  });
+  serverProcess.on('exit', (code) => {
+    if (code !== null && code !== 0) {
+      console.error(`\n❌ Backend API bị dừng sớm với mã lỗi: ${code}`);
+      if (apiLogs) console.error(apiLogs);
+    }
+  });
+
+  process.stdout.write('      Đang đợi Backend API phản hồi');
+  const ready = await waitForServer(35, 1000);
+  console.log('');
+
+  if (!ready) {
+    console.error('[Error] Không thể khởi động Backend API server sau 35s. Vui lòng kiểm tra lại build.');
+    if (apiLogs) console.error('\nLog chi tiết từ Backend:\n' + apiLogs);
+    if (serverProcess) serverProcess.kill();
+    process.exit(1);
+  }
+  console.log('[Success] Backend API server đã sẵn sàng!\n');
 
   console.log('🎯 Đang kích hoạt Newman CLI thực thi Postman Collection...\n');
 
+  let testFailed = false;
   try {
     execSync(
       `npx --yes newman run "${COLLECTION_PATH}" -e "${ENV_PATH}"`,
       { stdio: 'inherit' }
     );
     console.log('\n===============================================================');
-    console.log('🎉 TẤT CẢ 14 KIỂM THỬ POSTMAN ĐỀU ĐÃ VƯỢT QUA XUẤT SẮC (PASS 100%)!');
+    console.log('🎉 TẤT CẢ 30 KIỂM THỬ POSTMAN ĐỀU ĐÃ VƯỢT QUA XUẤT SẮC (PASS 100%)!');
     console.log('===============================================================\n');
   } catch (error) {
     console.error('\n❌ Có lỗi xảy ra trong quá trình chạy kiểm thử Postman.');
-    process.exitCode = 1;
+    testFailed = true;
   } finally {
-    if (serverProcess) {
-      console.log('[Cleanup] Dừng tiến trình server kiểm thử cục bộ...');
-      serverProcess.kill();
+    console.log('[Cleanup] Dừng tiến trình server kiểm thử cục bộ...');
+    try {
+      if (serverProcess) {
+        serverProcess.kill();
+      }
+    } catch (e) {
+      console.error('[Cleanup serverProcess error]:', e.message);
     }
+    try {
+      freePort(PORT);
+    } catch (e) {
+      console.error('[Cleanup freePort error]:', e.message);
+    }
+    console.log('[Cleanup] Hoàn tất dọn dẹp tiến trình.');
+  }
+
+  console.log(`[Suite Result] testFailed=${testFailed}. Exiting now.`);
+  if (testFailed) {
+    process.exit(1);
+  } else {
+    process.exit(0);
   }
 }
 
-main();
+main().catch((err) => {
+  console.error('[Unhandled in main]:', err);
+  process.exit(1);
+});
 

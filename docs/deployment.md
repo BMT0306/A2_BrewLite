@@ -6,6 +6,7 @@
 ### THÔNG TIN HỒ SƠ THỰC HIỆN (PHÂN CÔNG CHẤM TIẾN ĐỘ TUẦN 9)
 | Thuộc tính | Chi tiết |
 | :--- | :--- |
+| **Họ và tên sinh viên** | **Trần Lê Minh Tâm** |
 | **Mã thành viên** | **Chính 1** |
 | **Vai trò chuyên môn** | **System Architect & DevOps Lead** |
 | **Tài liệu phụ trách** | `docs/deployment.md`, `docs/architecture/overview.md`, `.github/workflows/ci.yml`, `.github/workflows/cd.yml`, `docker-compose.yml` |

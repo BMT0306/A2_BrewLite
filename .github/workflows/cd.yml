@@ -7,8 +7,6 @@ on:
 
 env:
   REGISTRY: ghcr.io
-  IMAGE_API: ghcr.io/${{ github.repository }}/api
-  IMAGE_WEB: ghcr.io/${{ github.repository }}/web
   PRODUCTION_API_URL: http://localhost:4000
 
 jobs:
@@ -42,9 +40,13 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ github.token }}
 
-      - name: 5. Extract Git Commit Short SHA
+      - name: 5. Prepare Lowercase Docker Image Names & Git SHA
         id: vars
-        run: echo "sha_short=$(git rev-parse --short HEAD)" >> "$GITHUB_OUTPUT"
+        run: |
+          REPO_LOWER=$(echo "${{ github.repository }}" | tr '[:upper:]' '[:lower:]')
+          echo "IMAGE_API=ghcr.io/${REPO_LOWER}/api" >> $GITHUB_ENV
+          echo "IMAGE_WEB=ghcr.io/${REPO_LOWER}/web" >> $GITHUB_ENV
+          echo "sha_short=$(git rev-parse --short HEAD)" >> "$GITHUB_OUTPUT"
 
       - name: 6. Build and Push API Docker Image
         uses: docker/build-push-action@v5

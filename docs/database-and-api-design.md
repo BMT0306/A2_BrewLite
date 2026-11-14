@@ -6,6 +6,7 @@
 ### THÔNG TIN HỒ SƠ THỰC HIỆN (PHÂN CÔNG CHẤM TIẾN ĐỘ TUẦN 9)
 | Thuộc tính | Chi tiết |
 | :--- | :--- |
+| **Họ và tên sinh viên** | **Đỗ Thanh Tuấn** |
 | **Mã thành viên** | **Chính 2** |
 | **Vai trò chuyên môn** | **Backend & Database Lead** |
 | **Tài liệu phụ trách** | `docs/database-and-api-design.md`, `docs/diagrams/class-domain.puml` / `.svg`, `docs/diagrams/activity-end-to-end.puml` / `.svg` |
