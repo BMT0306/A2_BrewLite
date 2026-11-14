@@ -10,7 +10,7 @@
     "format": "prettier --write \"src/**/*.ts\" \"test/**/*.ts\"",
     "start": "nest start || ts-node src/main.ts",
     "start:dev": "nest start --watch || ts-node src/main.ts",
-    "start:prod": "node dist/main",
+    "start:prod": "node dist/src/main.js",
     "lint": "tsc --noEmit",
     "test": "jest --passWithNoTests",
     "test:watch": "jest --watch",

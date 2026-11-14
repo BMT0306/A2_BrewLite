@@ -9,6 +9,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { AuthService } from './auth.service';
 import { PrismaService } from '../../prisma/prisma.service';
 import { JwtService } from '@nestjs/jwt';
+import { StorageService } from '../../common/storage/storage.service';
 import { ConflictException, UnauthorizedException } from '@nestjs/common';
 import * as bcrypt from 'bcrypt';
 
@@ -34,6 +35,7 @@ describe('AuthService (Unit Test: Authentication & JWT)', () => {
         {
           provide: PrismaService,
           useValue: {
+            isConnected: true,
             user: {
               findUnique: jest.fn().mockImplementation(({ where }) => {
                 if (where.email === 'customer@brewlite.vn') {
@@ -59,6 +61,16 @@ describe('AuthService (Unit Test: Authentication & JWT)', () => {
           provide: JwtService,
           useValue: {
             sign: jest.fn().mockReturnValue('mock.jwt.token'),
+          },
+        },
+        {
+          provide: StorageService,
+          useValue: {
+            getUsers: jest.fn().mockReturnValue([]),
+            getUserByEmail: jest.fn().mockReturnValue(undefined),
+            getUserById: jest.fn().mockReturnValue(undefined),
+            saveUser: jest.fn(),
+            updateUserLoyaltyPoints: jest.fn(),
           },
         },
       ],

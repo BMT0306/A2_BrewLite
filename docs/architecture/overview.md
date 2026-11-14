@@ -6,6 +6,7 @@
 ### THÔNG TIN HỒ SƠ THỰC HIỆN (PHÂN CÔNG CHẤM TIẾN ĐỘ TUẦN 9)
 | Thuộc tính | Chi tiết |
 | :--- | :--- |
+| **Họ và tên sinh viên** | **Trần Lê Minh Tâm** |
 | **Mã thành viên** | **Chính 1** |
 | **Vai trò chuyên môn** | **System Architect & DevOps Lead** |
 | **Tài liệu phụ trách** | `docs/architecture/overview.md`, `docs/architecture/adr/001-monorepo.md`, `002-database-transaction.md`, `003-mock-payment-idempotency.md`, `docs/diagrams/sequence-checkout.puml` / `.svg`, `docs/diagrams/deployment-prod.puml` / `.svg`, `docs/deployment.md` |

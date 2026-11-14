@@ -8,6 +8,7 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { PaymentsService } from './payments.service';
 import { PrismaService } from '../../prisma/prisma.service';
+import { StorageService } from '../../common/storage/storage.service';
 import { PaymentMethod, PaymentStatus, OrderStatus } from '@prisma/client';
 import { BadRequestException } from '@nestjs/common';
 
@@ -47,6 +48,7 @@ describe('PaymentsService (Unit Test: Idempotency & Stock Logic)', () => {
         {
           provide: PrismaService,
           useValue: {
+            isConnected: true,
             payment: {
               findUnique: jest.fn().mockImplementation(({ where }) => {
                 if (where.idempotencyKey === 'idempotency-uuid-fixed') {
@@ -80,6 +82,17 @@ describe('PaymentsService (Unit Test: Idempotency & Stock Logic)', () => {
                 },
               });
             }),
+          },
+        },
+        {
+          provide: StorageService,
+          useValue: {
+            savePayment: jest.fn(),
+            getOrders: jest.fn().mockReturnValue([]),
+            updateOrderStatus: jest.fn(),
+            isSepayTxnProcessed: jest.fn().mockReturnValue(false),
+            markSepayTxnProcessed: jest.fn(),
+            restoreProductAndIngredients: jest.fn(),
           },
         },
       ],

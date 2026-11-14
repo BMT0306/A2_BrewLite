@@ -75,7 +75,7 @@ async function main() {
   });
   console.log(`Created promotion: ${promo.code}`);
 
-  // 5. Create 6 Products (at least 1 out-of-stock item: stockQuantity: 0)
+  // 5. Create 12 Specialty Cafe Products (including out-of-stock items for testing)
   const products = [
     {
       name: 'Cà Phê Sữa Đá Sài Gòn',
@@ -97,7 +97,7 @@ async function main() {
       isAvailable: true,
     },
     {
-      name: 'Bạc Xỉu Kem Muối',
+      name: 'Bạc Xỉu Sài Gòn Kem Muối',
       description: 'Sự cân bằng hoàn hảo giữa vị ngọt sữa, hương thơm cà phê và lớp kem béo mặn nhẹ.',
       category: 'Coffee',
       basePrice: 35000,
@@ -112,6 +112,40 @@ async function main() {
         { name: 'Thạch cà phê', price: 6000 },
       ],
       stockQuantity: 30,
+      isAvailable: true,
+    },
+    {
+      name: 'Cà Phê Trứng Hà Nội Thượng Hạng',
+      description: 'Cà phê phin truyền thống phối cùng lớp kem trứng gà tươi đánh bông béo ngậy.',
+      category: 'Coffee',
+      basePrice: 42000,
+      imageUrl: 'https://images.unsplash.com/photo-1509042239860-f550ce710b93?w=500&q=80',
+      sizeOptions: [
+        { size: 'S', price: 0 },
+        { size: 'M', price: 6000 },
+      ],
+      toppingOptions: [
+        { name: 'Bột cacao rắc mặt', price: 5000 },
+        { name: 'Kem trứng thêm', price: 12000 },
+      ],
+      stockQuantity: 25,
+      isAvailable: true,
+    },
+    {
+      name: 'Cold Brew Cam Vàng Mật Ong',
+      description: 'Cà phê ủ lạnh 18 tiếng từ hạt Arabica Cầu Đất kết hợp lát cam vàng và mật ong rừng.',
+      category: 'Coffee',
+      basePrice: 45000,
+      imageUrl: 'https://images.unsplash.com/photo-1517256064527-09c73fc73e38?w=500&q=80',
+      sizeOptions: [
+        { size: 'M', price: 0 },
+        { size: 'L', price: 8000 },
+      ],
+      toppingOptions: [
+        { name: 'Cam vàng lát sấy', price: 6000 },
+        { name: 'Hạt chia hữu cơ', price: 5000 },
+      ],
+      stockQuantity: 35,
       isAvailable: true,
     },
     {
@@ -133,7 +167,43 @@ async function main() {
       isAvailable: true,
     },
     {
-      name: 'Trà Sữa Oolong Nướng',
+      name: 'Trà Sen Vàng Hạt Sen Long Nhãn',
+      description: 'Trà Oolong thượng hạng kết hợp hạt sen Huế bùi ngọt, củ năng giòn rụm và kem sữa thơm mịn.',
+      category: 'Tea',
+      basePrice: 45000,
+      imageUrl: 'https://images.unsplash.com/photo-1576092768241-dec231879fc3?w=500&q=80',
+      sizeOptions: [
+        { size: 'S', price: 0 },
+        { size: 'M', price: 6000 },
+        { size: 'L', price: 10000 },
+      ],
+      toppingOptions: [
+        { name: 'Hạt sen bùi', price: 10000 },
+        { name: 'Củ năng ngâm', price: 8000 },
+      ],
+      stockQuantity: 20,
+      isAvailable: true,
+    },
+    {
+      name: 'Trà Ô Long Dâu Tằm Macchiato',
+      description: 'Trà ô long thanh khiết kết hợp mứt dâu tằm Đà Lạt chua ngọt tự nhiên, phủ lớp bọt sữa Macchiato béo mịn.',
+      category: 'Tea',
+      basePrice: 42000,
+      imageUrl: 'https://images.unsplash.com/photo-1595981267035-7b04ca84a82d?w=500&q=80',
+      sizeOptions: [
+        { size: 'S', price: 0 },
+        { size: 'M', price: 6000 },
+        { size: 'L', price: 10000 },
+      ],
+      toppingOptions: [
+        { name: 'Thạch dâu tằm', price: 7000 },
+        { name: 'Macchiato thêm', price: 9000 },
+      ],
+      stockQuantity: 18,
+      isAvailable: true,
+    },
+    {
+      name: 'Trà Sữa Oolong Nướng Trân Châu Hoàng Kim',
       description: 'Lá trà Oolong sao nhiệt tạo vị khói thơm lừng kết hợp sữa tươi thanh trùng béo ngậy.',
       category: 'MilkTea',
       basePrice: 42000,
@@ -152,7 +222,43 @@ async function main() {
       isAvailable: true,
     },
     {
-      name: 'Matcha Đá Xay Kem Tuyết',
+      name: 'Trà Sữa Thái Đỏ Thạch Phô Mai',
+      description: 'Trà đỏ Thái Lan truyền thống ủ đậm vị sữa thảo mộc cùng thạch phô mai tươi béo thơm tan trong miệng.',
+      category: 'MilkTea',
+      basePrice: 38000,
+      imageUrl: 'https://images.unsplash.com/photo-1525385133512-2f3bdd039054?w=500&q=80',
+      sizeOptions: [
+        { size: 'S', price: 0 },
+        { size: 'M', price: 6000 },
+        { size: 'L', price: 10000 },
+      ],
+      toppingOptions: [
+        { name: 'Viên phô mai tươi', price: 10000 },
+        { name: 'Sương sáo đen', price: 6000 },
+      ],
+      stockQuantity: 30,
+      isAvailable: true,
+    },
+    {
+      name: 'Trà Sữa Khoai Môn Dừa Nướng',
+      description: 'Cốt khoai môn nguyên củ nghiền mịn hòa quyện trà lài thơm dịu, phủ dừa nướng giòn rụm.',
+      category: 'MilkTea',
+      basePrice: 45000,
+      imageUrl: 'https://images.unsplash.com/photo-1558857563-b37df2dd4122?w=500&q=80',
+      sizeOptions: [
+        { size: 'S', price: 0 },
+        { size: 'M', price: 6000 },
+        { size: 'L', price: 10000 },
+      ],
+      toppingOptions: [
+        { name: 'Dừa nướng giòn', price: 6000 },
+        { name: 'Trân châu taro', price: 7000 },
+      ],
+      stockQuantity: 0, // TẠM HẾT HÀNG để test luồng hết hàng
+      isAvailable: false,
+    },
+    {
+      name: 'Matcha Đá Xay Kem Tuyết Nhật Bản',
       description: 'Bột trà xanh Uji Nhật Bản xay mịn cùng sữa béo và đá viên, phủ lớp kem whip mềm mịn.',
       category: 'Freeze',
       basePrice: 49000,
@@ -170,22 +276,21 @@ async function main() {
       isAvailable: true,
     },
     {
-      name: 'Trà Sen Vàng Long Nhãn (TẠM HẾT HÀNG)',
-      description: 'Món đặc sản sen Huế thượng hạng thanh mát kết hợp long nhãn ngọt ngào thơm nức.',
-      category: 'Tea',
-      basePrice: 45000,
-      imageUrl: 'https://images.unsplash.com/photo-1576092768241-dec231879fc3?w=500&q=80',
+      name: 'Caramel Choco Freeze Hạnh Nhân',
+      description: 'Sốt chocolate đậm đặc xay tuyết đá mịn cùng sữa tươi và sốt sốt caramel thơm lừng, rắc hạnh nhân lát rang bùi béo.',
+      category: 'Freeze',
+      basePrice: 52000,
+      imageUrl: 'https://images.unsplash.com/photo-1577805947697-89e18249d767?w=500&q=80',
       sizeOptions: [
-        { size: 'S', price: 0 },
-        { size: 'M', price: 6000 },
-        { size: 'L', price: 10000 },
+        { size: 'M', price: 0 },
+        { size: 'L', price: 8000 },
       ],
       toppingOptions: [
-        { name: 'Hạt sen bùi', price: 10000 },
-        { name: 'Củ năng ngâm', price: 8000 },
+        { name: 'Hạnh nhân lát nướng', price: 8000 },
+        { name: 'Kem whip béo', price: 8000 },
       ],
-      stockQuantity: 0, // OUT OF STOCK ITEM TO TEST ACTIVITY DIAGRAM BRANCH
-      isAvailable: false,
+      stockQuantity: 22,
+      isAvailable: true,
     },
   ];
 

@@ -8,6 +8,7 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { OrdersService } from './orders.service';
 import { PrismaService } from '../../prisma/prisma.service';
+import { StorageService } from '../../common/storage/storage.service';
 import { ConflictException, NotFoundException } from '@nestjs/common';
 import { OrderStatus, Prisma } from '@prisma/client';
 
@@ -38,6 +39,7 @@ describe('OrdersService (Unit Test: Atomic Transactions & Inventory)', () => {
         {
           provide: PrismaService,
           useValue: {
+            isConnected: true,
             $transaction: jest.fn().mockImplementation(async (callback) => {
               const tx = {
                 product: {
@@ -85,6 +87,19 @@ describe('OrdersService (Unit Test: Atomic Transactions & Inventory)', () => {
                 status: data.status,
               })),
             },
+          },
+        },
+        {
+          provide: StorageService,
+          useValue: {
+            getProductStock: jest.fn().mockReturnValue(10),
+            setProductStock: jest.fn(),
+            deductProductAndIngredients: jest.fn().mockReturnValue({ success: true }),
+            restoreProductAndIngredients: jest.fn().mockReturnValue({ success: true }),
+            getOrders: jest.fn().mockReturnValue([]),
+            saveOrder: jest.fn(),
+            updateOrderStatus: jest.fn(),
+            removeOrder: jest.fn().mockReturnValue(true),
           },
         },
       ],

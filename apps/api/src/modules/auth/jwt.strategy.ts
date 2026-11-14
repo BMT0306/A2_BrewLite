@@ -9,10 +9,14 @@ import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { PassportStrategy } from '@nestjs/passport';
 import { ExtractJwt, Strategy } from 'passport-jwt';
 import { PrismaService } from '../../prisma/prisma.service';
+import { StorageService } from '../../common/storage/storage.service';
 
 @Injectable()
 export class JwtStrategy extends PassportStrategy(Strategy) {
-  constructor(private readonly prisma: PrismaService) {
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly storageService: StorageService,
+  ) {
     super({
       jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
       ignoreExpiration: false,
@@ -21,20 +25,32 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
   }
 
   async validate(payload: { sub: string; email: string; role: string }) {
-    try {
-      const user = await this.prisma.user.findUnique({
-        where: { id: payload.sub },
-      });
-      if (user) {
-        return {
-          id: user.id,
-          email: user.email,
-          fullName: user.fullName,
-          role: user.role,
-        };
+    if (this.prisma.isConnected) {
+      try {
+        const user = await this.prisma.user.findUnique({
+          where: { id: payload.sub },
+        });
+        if (user) {
+          return {
+            id: user.id,
+            email: user.email,
+            fullName: user.fullName,
+            role: user.role,
+          };
+        }
+      } catch {
+        // Database connection fallback khi PostgreSQL offline
       }
-    } catch {
-      // Database connection fallback khi PostgreSQL offline
+    }
+
+    const storedUser = this.storageService.getUserById(payload?.sub);
+    if (storedUser) {
+      return {
+        id: storedUser.id,
+        email: storedUser.email,
+        fullName: storedUser.fullName,
+        role: storedUser.role,
+      };
     }
 
     if (payload && payload.sub) {

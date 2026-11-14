@@ -6,6 +6,7 @@
 ### THÔNG TIN HỒ SƠ THỰC HIỆN (PHÂN CÔNG CHẤM TIẾN ĐỘ TUẦN 9)
 | Thuộc tính | Chi tiết |
 | :--- | :--- |
+| **Họ và tên sinh viên** | **Chương Gia Thịnh** |
 | **Mã thành viên** | **Phụ 1** |
 | **Vai trò chuyên môn** | **Business Analyst 1 (Bối cảnh, Stakeholder & Phạm vi)** |
 | **Tài liệu phụ trách** | `docs/requirements/context-and-scope.md` & Phụ lục Danh mục Menu & Dữ liệu mẫu (`seed.ts`) |

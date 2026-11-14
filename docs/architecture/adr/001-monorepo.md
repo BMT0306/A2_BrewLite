@@ -6,6 +6,7 @@
 ### THÔNG TIN HỒ SƠ THỰC HIỆN
 | Thuộc tính | Chi tiết |
 | :--- | :--- |
+| **Họ và tên** | **Trần Lê Minh Tâm** |
 | **Mã thành viên** | **Chính 1** |
 | **Vai trò** | **System Architect & DevOps Lead** |
 | **Trạng thái quyết định** | **ĐÃ CHẤP NHẬN (ACCEPTED)** |

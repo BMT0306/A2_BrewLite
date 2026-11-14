@@ -1,0 +1,962 @@
+{
+  "users": [
+    {
+      "id": "usr-customer-001",
+      "email": "customer@brewlite.vn",
+      "fullName": "Nguyễn Văn Khách",
+      "role": "CUSTOMER",
+      "loyaltyPoints": 141,
+      "phone": "0901234567",
+      "passwordHash": "$2b$10$U7WZ67Oorw0UfnwmyOSOgeeZ2R8Gv9dQZR1qS8Xwt0KvK2pthoY/a"
+    },
+    {
+      "id": "usr-staff-001",
+      "email": "staff@brewlite.vn",
+      "fullName": "Trần Thị Thu Ngân",
+      "role": "STAFF",
+      "loyaltyPoints": 0,
+      "phone": "0912345678",
+      "passwordHash": "$2b$10$7elSxYyGJjllJ.2MtaVTDejAcgP7aZx4sngcH4tR9x6vWCLKzlN/S"
+    },
+    {
+      "id": "usr-manager-001",
+      "email": "manager@brewlite.vn",
+      "fullName": "Lê Hoàng Quản Lý",
+      "role": "MANAGER",
+      "loyaltyPoints": 0,
+      "phone": "0923456789",
+      "passwordHash": "$2b$10$T4QEUnYFNSEhbMCrt1ZlBO1el/62jsyRvhw9LTpXlTP5NxG1Sun3S"
+    },
+    {
+      "id": "usr-1794641180518",
+      "email": "tamtran17008@gmail.com",
+      "fullName": "Tâm Trần",
+      "role": "CUSTOMER",
+      "loyaltyPoints": 4,
+      "phone": "0348571402",
+      "passwordHash": "$2b$10$6vqtTqWegO8RQFshd5d8WuZ87YxCSc2GgQJivZ4CKFug8xU9kTIRm"
+    },
+    {
+      "id": "usr-1794642863175",
+      "email": "customer_1794642863@brewlite.vn",
+      "fullName": "Trần Lê Minh Tâm",
+      "role": "CUSTOMER",
+      "loyaltyPoints": 0,
+      "phone": "0901234567",
+      "passwordHash": "$2b$10$mGHKVlt9AKLmVGS./oIn/.R1lJUgLNEXvxweVU.oKZE.hnURHrHqy"
+    },
+    {
+      "id": "usr-1794643493180",
+      "email": "customer_1794643493@brewlite.vn",
+      "fullName": "Trần Lê Minh Tâm",
+      "role": "CUSTOMER",
+      "loyaltyPoints": 0,
+      "phone": "0901234567",
+      "passwordHash": "$2b$10$6To7EFpF2orF0Z5UAe/Xy.r4iY.5ERsiJWnj.oHfhkW7HMbFBjX2G"
+    },
+    {
+      "id": "usr-1794645403159",
+      "email": "customer_1794645403@brewlite.vn",
+      "fullName": "Trần Lê Minh Tâm",
+      "role": "CUSTOMER",
+      "loyaltyPoints": 0,
+      "phone": "0901234567",
+      "passwordHash": "$2b$10$OpJq1O4naJlz4PvyruQ/hOgTS7P43IbNAF2x6myUNSoBpDZnIVUzG"
+    }
+  ],
+  "orders": [
+    {
+      "id": "ord-1794645405099",
+      "orderCode": "BL-405099-8449",
+      "userId": "usr-customer-001",
+      "status": "CANCELLED",
+      "subtotalAmount": 70000,
+      "discountAmount": 0,
+      "totalAmount": 70000,
+      "note": "Giao hàng nhanh - Ít đường nhiều đá",
+      "items": [
+        {
+          "id": "item-1794645405099-ghd9",
+          "productId": "prod-001-cf-sua-da",
+          "size": "M",
+          "selectedToppings": [
+            "Trân châu đen"
+          ],
+          "quantity": 2,
+          "unitPrice": 35000,
+          "lineTotal": 70000,
+          "product": {
+            "id": "prod-001-cf-sua-da",
+            "name": "Cà Phê Sữa Đá Sài Gòn",
+            "description": "Cà phê Robusta Đắk Lắk rang mộc đậm đà hòa quyện cùng sữa đặc béo ngậy.",
+            "recipe": "25g Cốt cà phê Robusta Đắk Lắk rang mộc, 30ml Sữa đặc Ngôi Sao, 20ml Sữa tươi thanh trùng, 150g Đá bi tinh khiết.",
+            "category": "Coffee",
+            "basePrice": 29000,
+            "imageUrl": "https://images.unsplash.com/photo-1517701550927-30cf4ba1dba5?w=500&q=80",
+            "sizeOptions": [
+              {
+                "size": "S",
+                "price": 0
+              },
+              {
+                "size": "M",
+                "price": 6000
+              },
+              {
+                "size": "L",
+                "price": 10000
+              }
+            ],
+            "toppingOptions": [
+              {
+                "name": "Trân châu đen",
+                "price": 5000
+              },
+              {
+                "name": "Thạch cà phê",
+                "price": 6000
+              },
+              {
+                "name": "Kem cheese",
+                "price": 10000
+              }
+            ],
+            "stockQuantity": 45,
+            "isAvailable": true,
+            "createdAt": "2026-01-01T00:00:00.000Z"
+          }
+        }
+      ],
+      "payments": [
+        {
+          "id": "pay-1794645405784",
+          "orderId": "ord-1794645405099",
+          "method": "WALLET",
+          "status": "REFUNDED",
+          "amount": 70000,
+          "transactionRef": "TXN_WALLET_1794645405784",
+          "paidAt": "2026-11-14T08:36:45.784Z"
+        }
+      ],
+      "createdAt": "2026-11-14T08:36:45.099Z",
+      "refundStatus": "REFUNDED"
+    },
+    {
+      "id": "ord-1794644136504",
+      "orderCode": "BL-136504-8084",
+      "userId": "usr-1794641180518",
+      "status": "COMPLETED",
+      "subtotalAmount": 25000,
+      "discountAmount": 0,
+      "totalAmount": 25000,
+      "note": null,
+      "items": [
+        {
+          "id": "item-1794644136504-7rlo",
+          "productId": "prod-007-cf-den-da",
+          "size": "S",
+          "selectedToppings": [],
+          "quantity": 1,
+          "unitPrice": 25000,
+          "lineTotal": 25000,
+          "product": {
+            "id": "prod-007-cf-den-da",
+            "name": "Cà Phê Đen Đá Pha Phin",
+            "description": "Vị đắng đượm hương hoa quả khô của hạt cà phê Robusta & Arabica Cầu Đất rang mộc.",
+            "recipe": "30g Cốt cà phê Robusta & Arabica Cầu Đất rang mộc, 10g Đường mía tự nhiên, 150g Đá viên tinh khiết.",
+            "category": "Coffee",
+            "basePrice": 25000,
+            "imageUrl": "https://images.unsplash.com/photo-1514432324607-a09d9b4aefdd?w=500&q=80",
+            "sizeOptions": [
+              {
+                "size": "S",
+                "price": 0
+              },
+              {
+                "size": "M",
+                "price": 5000
+              },
+              {
+                "size": "L",
+                "price": 8000
+              }
+            ],
+            "toppingOptions": [
+              {
+                "name": "Thạch cà phê",
+                "price": 6000
+              }
+            ],
+            "stockQuantity": 51,
+            "isAvailable": true,
+            "createdAt": "2026-01-01T00:00:00.000Z"
+          }
+        }
+      ],
+      "payments": [
+        {
+          "id": "pay-1794644158891",
+          "orderId": "ord-1794644136504",
+          "method": "CARD",
+          "status": "PAID",
+          "amount": 25000,
+          "transactionRef": "TXN_CARD_1794644158891",
+          "paidAt": "2026-11-14T08:15:58.891Z"
+        }
+      ],
+      "createdAt": "2026-11-14T08:15:36.504Z"
+    },
+    {
+      "id": "ord-1794643495115",
+      "orderCode": "BL-495115-4930",
+      "userId": "usr-customer-001",
+      "status": "CANCELLED",
+      "subtotalAmount": 70000,
+      "discountAmount": 0,
+      "totalAmount": 70000,
+      "note": "Giao hàng nhanh - Ít đường nhiều đá",
+      "items": [
+        {
+          "id": "item-1794643495115-2wvj",
+          "productId": "prod-001-cf-sua-da",
+          "size": "M",
+          "selectedToppings": [
+            "Trân châu đen"
+          ],
+          "quantity": 2,
+          "unitPrice": 35000,
+          "lineTotal": 70000,
+          "product": {
+            "id": "prod-001-cf-sua-da",
+            "name": "Cà Phê Sữa Đá Sài Gòn",
+            "description": "Cà phê Robusta Đắk Lắk rang mộc đậm đà hòa quyện cùng sữa đặc béo ngậy.",
+            "recipe": "25g Cốt cà phê Robusta Đắk Lắk rang mộc, 30ml Sữa đặc Ngôi Sao, 20ml Sữa tươi thanh trùng, 150g Đá bi tinh khiết.",
+            "category": "Coffee",
+            "basePrice": 29000,
+            "imageUrl": "https://images.unsplash.com/photo-1517701550927-30cf4ba1dba5?w=500&q=80",
+            "sizeOptions": [
+              {
+                "size": "S",
+                "price": 0
+              },
+              {
+                "size": "M",
+                "price": 6000
+              },
+              {
+                "size": "L",
+                "price": 10000
+              }
+            ],
+            "toppingOptions": [
+              {
+                "name": "Trân châu đen",
+                "price": 5000
+              },
+              {
+                "name": "Thạch cà phê",
+                "price": 6000
+              },
+              {
+                "name": "Kem cheese",
+                "price": 10000
+              }
+            ],
+            "stockQuantity": 47,
+            "isAvailable": true,
+            "createdAt": "2026-01-01T00:00:00.000Z"
+          }
+        }
+      ],
+      "payments": [
+        {
+          "id": "pay-1794643495724",
+          "orderId": "ord-1794643495115",
+          "method": "WALLET",
+          "status": "REFUNDED",
+          "amount": 70000,
+          "transactionRef": "TXN_WALLET_1794643495724",
+          "paidAt": "2026-11-14T08:04:55.724Z"
+        }
+      ],
+      "createdAt": "2026-11-14T08:04:55.115Z",
+      "refundStatus": "REFUNDED"
+    },
+    {
+      "id": "ord-1794642865041",
+      "orderCode": "BL-865041-1949",
+      "userId": "usr-customer-001",
+      "status": "CANCELLED",
+      "subtotalAmount": 70000,
+      "discountAmount": 0,
+      "totalAmount": 70000,
+      "note": "Giao hàng nhanh - Ít đường nhiều đá",
+      "items": [
+        {
+          "id": "item-1794642865041-8je4",
+          "productId": "prod-001-cf-sua-da",
+          "size": "M",
+          "selectedToppings": [
+            "Trân châu đen"
+          ],
+          "quantity": 2,
+          "unitPrice": 35000,
+          "lineTotal": 70000,
+          "product": {
+            "id": "prod-001-cf-sua-da",
+            "name": "Cà Phê Sữa Đá Sài Gòn",
+            "description": "Cà phê Robusta Đắk Lắk rang mộc đậm đà hòa quyện cùng sữa đặc béo ngậy.",
+            "recipe": "25g Cốt cà phê Robusta Đắk Lắk rang mộc, 30ml Sữa đặc Ngôi Sao, 20ml Sữa tươi thanh trùng, 150g Đá bi tinh khiết.",
+            "category": "Coffee",
+            "basePrice": 29000,
+            "imageUrl": "https://images.unsplash.com/photo-1517701550927-30cf4ba1dba5?w=500&q=80",
+            "sizeOptions": [
+              {
+                "size": "S",
+                "price": 0
+              },
+              {
+                "size": "M",
+                "price": 6000
+              },
+              {
+                "size": "L",
+                "price": 10000
+              }
+            ],
+            "toppingOptions": [
+              {
+                "name": "Trân châu đen",
+                "price": 5000
+              },
+              {
+                "name": "Thạch cà phê",
+                "price": 6000
+              },
+              {
+                "name": "Kem cheese",
+                "price": 10000
+              }
+            ],
+            "stockQuantity": 47,
+            "isAvailable": true,
+            "createdAt": "2026-01-01T00:00:00.000Z"
+          }
+        }
+      ],
+      "payments": [
+        {
+          "id": "pay-1794642865688",
+          "orderId": "ord-1794642865041",
+          "method": "WALLET",
+          "status": "REFUNDED",
+          "amount": 70000,
+          "transactionRef": "TXN_WALLET_1794642865688",
+          "paidAt": "2026-11-14T07:54:25.688Z"
+        }
+      ],
+      "createdAt": "2026-11-14T07:54:25.041Z",
+      "refundStatus": "REFUNDED"
+    },
+    {
+      "id": "ord-1794641578741",
+      "orderCode": "BL-578741-6036",
+      "userId": "usr-1794641180518",
+      "status": "COMPLETED",
+      "subtotalAmount": 29000,
+      "discountAmount": 0,
+      "totalAmount": 29000,
+      "note": null,
+      "items": [
+        {
+          "id": "item-1794641578741-f1cs",
+          "productId": "prod-001-cf-sua-da",
+          "size": "S",
+          "selectedToppings": [],
+          "quantity": 1,
+          "unitPrice": 29000,
+          "lineTotal": 29000,
+          "product": {
+            "id": "prod-001-cf-sua-da",
+            "name": "Cà Phê Sữa Đá Sài Gòn",
+            "description": "Cà phê Robusta Đắk Lắk rang mộc đậm đà hòa quyện cùng sữa đặc béo ngậy.",
+            "recipe": "25g Cốt cà phê Robusta Đắk Lắk rang mộc, 30ml Sữa đặc Ngôi Sao, 20ml Sữa tươi thanh trùng, 150g Đá bi tinh khiết.",
+            "category": "Coffee",
+            "basePrice": 29000,
+            "imageUrl": "https://images.unsplash.com/photo-1517701550927-30cf4ba1dba5?w=500&q=80",
+            "sizeOptions": [
+              {
+                "size": "S",
+                "price": 0
+              },
+              {
+                "size": "M",
+                "price": 6000
+              },
+              {
+                "size": "L",
+                "price": 10000
+              }
+            ],
+            "toppingOptions": [
+              {
+                "name": "Trân châu đen",
+                "price": 5000
+              },
+              {
+                "name": "Thạch cà phê",
+                "price": 6000
+              },
+              {
+                "name": "Kem cheese",
+                "price": 10000
+              }
+            ],
+            "stockQuantity": 46,
+            "isAvailable": true,
+            "createdAt": "2026-01-01T00:00:00.000Z"
+          }
+        }
+      ],
+      "payments": [
+        {
+          "id": "pay-1794641979761",
+          "orderId": "ord-1794641578741",
+          "method": "CARD",
+          "status": "PAID",
+          "amount": 29000,
+          "transactionRef": "TXN_CARD_1794641979761",
+          "paidAt": "2026-11-14T07:39:39.761Z"
+        }
+      ],
+      "createdAt": "2026-11-14T07:32:58.741Z"
+    },
+    {
+      "id": "ord-1794641528152",
+      "orderCode": "BL-528152-5080",
+      "userId": "usr-1794641180518",
+      "status": "CANCELLED",
+      "subtotalAmount": 65000,
+      "discountAmount": 0,
+      "totalAmount": 65000,
+      "note": null,
+      "items": [
+        {
+          "id": "item-1794641528151-9aav",
+          "productId": "prod-007-cf-den-da",
+          "size": "M",
+          "selectedToppings": [
+            {
+              "name": "Thạch cà phê",
+              "price": 6000
+            }
+          ],
+          "quantity": 1,
+          "unitPrice": 36000,
+          "lineTotal": 36000,
+          "product": {
+            "id": "prod-007-cf-den-da",
+            "name": "Cà Phê Đen Đá Pha Phin",
+            "description": "Vị đắng đượm hương hoa quả khô của hạt cà phê Robusta & Arabica Cầu Đất rang mộc.",
+            "recipe": "30g Cốt cà phê Robusta & Arabica Cầu Đất rang mộc, 10g Đường mía tự nhiên, 150g Đá viên tinh khiết.",
+            "category": "Coffee",
+            "basePrice": 25000,
+            "imageUrl": "https://images.unsplash.com/photo-1514432324607-a09d9b4aefdd?w=500&q=80",
+            "sizeOptions": [
+              {
+                "size": "S",
+                "price": 0
+              },
+              {
+                "size": "M",
+                "price": 5000
+              },
+              {
+                "size": "L",
+                "price": 8000
+              }
+            ],
+            "toppingOptions": [
+              {
+                "name": "Thạch cà phê",
+                "price": 6000
+              }
+            ],
+            "stockQuantity": 54,
+            "isAvailable": true,
+            "createdAt": "2026-01-01T00:00:00.000Z"
+          }
+        },
+        {
+          "id": "item-1794641528152-1g78",
+          "productId": "prod-001-cf-sua-da",
+          "size": "S",
+          "selectedToppings": [],
+          "quantity": 1,
+          "unitPrice": 29000,
+          "lineTotal": 29000,
+          "product": {
+            "id": "prod-001-cf-sua-da",
+            "name": "Cà Phê Sữa Đá Sài Gòn",
+            "description": "Cà phê Robusta Đắk Lắk rang mộc đậm đà hòa quyện cùng sữa đặc béo ngậy.",
+            "recipe": "25g Cốt cà phê Robusta Đắk Lắk rang mộc, 30ml Sữa đặc Ngôi Sao, 20ml Sữa tươi thanh trùng, 150g Đá bi tinh khiết.",
+            "category": "Coffee",
+            "basePrice": 29000,
+            "imageUrl": "https://images.unsplash.com/photo-1517701550927-30cf4ba1dba5?w=500&q=80",
+            "sizeOptions": [
+              {
+                "size": "S",
+                "price": 0
+              },
+              {
+                "size": "M",
+                "price": 6000
+              },
+              {
+                "size": "L",
+                "price": 10000
+              }
+            ],
+            "toppingOptions": [
+              {
+                "name": "Trân châu đen",
+                "price": 5000
+              },
+              {
+                "name": "Thạch cà phê",
+                "price": 6000
+              },
+              {
+                "name": "Kem cheese",
+                "price": 10000
+              }
+            ],
+            "stockQuantity": 46,
+            "isAvailable": true,
+            "createdAt": "2026-01-01T00:00:00.000Z"
+          }
+        }
+      ],
+      "payments": [],
+      "createdAt": "2026-11-14T07:32:08.152Z"
+    },
+    {
+      "id": "ord-1794641305541",
+      "orderCode": "BL-305541-4658",
+      "userId": "usr-1794641180518",
+      "status": "CANCELLED",
+      "subtotalAmount": 36000,
+      "discountAmount": 0,
+      "totalAmount": 36000,
+      "note": null,
+      "items": [
+        {
+          "id": "item-1794641305541-tpek",
+          "productId": "prod-007-cf-den-da",
+          "size": "M",
+          "selectedToppings": [
+            {
+              "name": "Thạch cà phê",
+              "price": 6000
+            }
+          ],
+          "quantity": 1,
+          "unitPrice": 36000,
+          "lineTotal": 36000,
+          "product": {
+            "id": "prod-007-cf-den-da",
+            "name": "Cà Phê Đen Đá Pha Phin",
+            "description": "Vị đắng đượm hương hoa quả khô của hạt cà phê Robusta & Arabica Cầu Đất rang mộc.",
+            "recipe": "30g Cốt cà phê Robusta & Arabica Cầu Đất rang mộc, 10g Đường mía tự nhiên, 150g Đá viên tinh khiết.",
+            "category": "Coffee",
+            "basePrice": 25000,
+            "imageUrl": "https://images.unsplash.com/photo-1514432324607-a09d9b4aefdd?w=500&q=80",
+            "sizeOptions": [
+              {
+                "size": "S",
+                "price": 0
+              },
+              {
+                "size": "M",
+                "price": 5000
+              },
+              {
+                "size": "L",
+                "price": 8000
+              }
+            ],
+            "toppingOptions": [
+              {
+                "name": "Thạch cà phê",
+                "price": 6000
+              }
+            ],
+            "stockQuantity": 54,
+            "isAvailable": true,
+            "createdAt": "2026-01-01T00:00:00.000Z"
+          }
+        }
+      ],
+      "payments": [],
+      "createdAt": "2026-11-14T07:28:25.541Z"
+    },
+    {
+      "id": "ord-1794641242791",
+      "orderCode": "BL-242791-4636",
+      "userId": "usr-1794641180518",
+      "status": "CANCELLED",
+      "subtotalAmount": 36000,
+      "discountAmount": 0,
+      "totalAmount": 36000,
+      "note": null,
+      "items": [
+        {
+          "id": "item-1794641242791-7h9b",
+          "productId": "prod-007-cf-den-da",
+          "size": "M",
+          "selectedToppings": [
+            {
+              "name": "Thạch cà phê",
+              "price": 6000
+            }
+          ],
+          "quantity": 1,
+          "unitPrice": 36000,
+          "lineTotal": 36000,
+          "product": {
+            "id": "prod-007-cf-den-da",
+            "name": "Cà Phê Đen Đá Pha Phin",
+            "description": "Vị đắng đượm hương hoa quả khô của hạt cà phê Robusta & Arabica Cầu Đất rang mộc.",
+            "recipe": "30g Cốt cà phê Robusta & Arabica Cầu Đất rang mộc, 10g Đường mía tự nhiên, 150g Đá viên tinh khiết.",
+            "category": "Coffee",
+            "basePrice": 25000,
+            "imageUrl": "https://images.unsplash.com/photo-1514432324607-a09d9b4aefdd?w=500&q=80",
+            "sizeOptions": [
+              {
+                "size": "S",
+                "price": 0
+              },
+              {
+                "size": "M",
+                "price": 5000
+              },
+              {
+                "size": "L",
+                "price": 8000
+              }
+            ],
+            "toppingOptions": [
+              {
+                "name": "Thạch cà phê",
+                "price": 6000
+              }
+            ],
+            "stockQuantity": 54,
+            "isAvailable": true,
+            "createdAt": "2026-01-01T00:00:00.000Z"
+          }
+        }
+      ],
+      "payments": [],
+      "createdAt": "2026-11-14T07:27:22.791Z"
+    },
+    {
+      "id": "ord-1794641213319",
+      "orderCode": "BL-213319-5025",
+      "userId": "usr-1794641180518",
+      "status": "CANCELLED",
+      "subtotalAmount": 36000,
+      "discountAmount": 0,
+      "totalAmount": 36000,
+      "note": null,
+      "items": [
+        {
+          "id": "item-1794641213319-4m2c",
+          "productId": "prod-007-cf-den-da",
+          "size": "M",
+          "selectedToppings": [
+            {
+              "name": "Thạch cà phê",
+              "price": 6000
+            }
+          ],
+          "quantity": 1,
+          "unitPrice": 36000,
+          "lineTotal": 36000,
+          "product": {
+            "id": "prod-007-cf-den-da",
+            "name": "Cà Phê Đen Đá Pha Phin",
+            "description": "Vị đắng đượm hương hoa quả khô của hạt cà phê Robusta & Arabica Cầu Đất rang mộc.",
+            "recipe": "30g Cốt cà phê Robusta & Arabica Cầu Đất rang mộc, 10g Đường mía tự nhiên, 150g Đá viên tinh khiết.",
+            "category": "Coffee",
+            "basePrice": 25000,
+            "imageUrl": "https://images.unsplash.com/photo-1514432324607-a09d9b4aefdd?w=500&q=80",
+            "sizeOptions": [
+              {
+                "size": "S",
+                "price": 0
+              },
+              {
+                "size": "M",
+                "price": 5000
+              },
+              {
+                "size": "L",
+                "price": 8000
+              }
+            ],
+            "toppingOptions": [
+              {
+                "name": "Thạch cà phê",
+                "price": 6000
+              }
+            ],
+            "stockQuantity": 54,
+            "isAvailable": true,
+            "createdAt": "2026-01-01T00:00:00.000Z"
+          }
+        }
+      ],
+      "payments": [],
+      "createdAt": "2026-11-14T07:26:53.319Z"
+    }
+  ],
+  "payments": [
+    {
+      "id": "pay-1794641979761",
+      "orderId": "ord-1794641578741",
+      "idempotencyKey": "sepay_FT26318164005554_ord-1794641578741",
+      "method": "CARD",
+      "status": "PAID",
+      "amount": 29000,
+      "transactionRef": "TXN_CARD_1794641979761",
+      "paidAt": "2026-11-14T07:39:39.761Z"
+    },
+    {
+      "id": "pay-1794642865688",
+      "orderId": "ord-1794642865041",
+      "idempotencyKey": "BL-IDEM-1794642866",
+      "method": "WALLET",
+      "status": "PAID",
+      "amount": 70000,
+      "transactionRef": "TXN_WALLET_1794642865688",
+      "paidAt": "2026-11-14T07:54:25.688Z"
+    },
+    {
+      "id": "pay-1794643495724",
+      "orderId": "ord-1794643495115",
+      "idempotencyKey": "BL-IDEM-1794643496",
+      "method": "WALLET",
+      "status": "PAID",
+      "amount": 70000,
+      "transactionRef": "TXN_WALLET_1794643495724",
+      "paidAt": "2026-11-14T08:04:55.724Z"
+    },
+    {
+      "id": "pay-1794644158891",
+      "orderId": "ord-1794644136504",
+      "idempotencyKey": "sepay_FT26318456705945_ord-1794644136504",
+      "method": "CARD",
+      "status": "PAID",
+      "amount": 25000,
+      "transactionRef": "TXN_CARD_1794644158891",
+      "paidAt": "2026-11-14T08:15:58.891Z"
+    },
+    {
+      "id": "pay-1794645405784",
+      "orderId": "ord-1794645405099",
+      "idempotencyKey": "BL-IDEM-1794645406",
+      "method": "WALLET",
+      "status": "PAID",
+      "amount": 70000,
+      "transactionRef": "TXN_WALLET_1794645405784",
+      "paidAt": "2026-11-14T08:36:45.784Z"
+    }
+  ],
+  "processedSepayTxnIds": [
+    "FT26318902410407",
+    "99319937",
+    "FT26318019362034",
+    "99315250",
+    "FT26318802921515",
+    "99218128",
+    "FT26317017990855",
+    "99129892",
+    "FT26317951108509",
+    "99129342",
+    "FT26317501456736",
+    "99057876",
+    "FT26317051327433",
+    "98997114",
+    "FT26315913027758",
+    "98567521",
+    "FT26315686420964",
+    "98457260",
+    "FT26315215232990",
+    "98393596",
+    "FT26315284150113",
+    "98373916",
+    "FT26315396927380",
+    "98368072",
+    "FT26314643376653",
+    "98220150",
+    "FT26314802391653",
+    "98219963",
+    "FT26314194404721",
+    "98070918",
+    "FT26314430455007",
+    "98066871",
+    "FT26314721793864",
+    "97899708",
+    "FT26314091900693",
+    "97899548",
+    "FT26314293166025",
+    "97899334",
+    "FT26313004714813",
+    "97862789",
+    "FT26318164005554",
+    "99349784",
+    "FT261114998877",
+    "998877",
+    "FT26318456705945",
+    "99358157"
+  ],
+  "stockOverrides": {
+    "prod-001-cf-sua-da": 45,
+    "prod-002-bac-xiu-kem-muoi": 30,
+    "prod-003-tra-dao-cam-sa": 25,
+    "prod-004-tra-sua-oolong": 40,
+    "prod-005-matcha-da-xay": 20,
+    "prod-006-tra-sen-vang": 0,
+    "prod-007-cf-den-da": 50,
+    "prod-008-cf-muoi-hue": 35,
+    "prod-009-tra-dau-tay-oi-hong": 30,
+    "prod-010-latte-hanh-nhan": 25,
+    "prod-011-caramel-macchiato": 25,
+    "prod-012-croissant-bo-toi": 20,
+    "prod-010-tra-sua-duong-den": 40,
+    "prod-011-freeze-caramel": 25
+  },
+  "ingredients": [
+    {
+      "id": "ING-CF-ROBUSTA",
+      "name": "Cà phê hạt Robusta Đắk Lắk",
+      "unit": "g",
+      "stock": 5000,
+      "minThreshold": 500,
+      "category": "Cà phê"
+    },
+    {
+      "id": "ING-SUA-DAC",
+      "name": "Sữa đặc Ngôi Sao Phương Nam",
+      "unit": "ml",
+      "stock": 4000,
+      "minThreshold": 400,
+      "category": "Sữa"
+    },
+    {
+      "id": "ING-SUA-TUOI",
+      "name": "Sữa tươi thanh trùng DalatMilk",
+      "unit": "ml",
+      "stock": 6000,
+      "minThreshold": 600,
+      "category": "Sữa"
+    },
+    {
+      "id": "ING-TRA-DEN",
+      "name": "Cốt trà đen Lâm Đồng",
+      "unit": "ml",
+      "stock": 5000,
+      "minThreshold": 500,
+      "category": "Trà"
+    },
+    {
+      "id": "ING-TRA-OOLONG",
+      "name": "Cốt trà Oolong sao nhiệt",
+      "unit": "ml",
+      "stock": 5000,
+      "minThreshold": 500,
+      "category": "Trà"
+    },
+    {
+      "id": "ING-SIRO-DAO",
+      "name": "Si-rô đào Pháp Teisseire",
+      "unit": "ml",
+      "stock": 2000,
+      "minThreshold": 200,
+      "category": "Si-rô"
+    },
+    {
+      "id": "ING-CAM-TUOI",
+      "name": "Cam sành tươi mọng nước",
+      "unit": "quả",
+      "stock": 50,
+      "minThreshold": 10,
+      "category": "Trái cây"
+    },
+    {
+      "id": "ING-DAO-NGAM",
+      "name": "Đào ngâm giòn đóng hộp",
+      "unit": "miếng",
+      "stock": 100,
+      "minThreshold": 20,
+      "category": "Trái cây"
+    },
+    {
+      "id": "ING-BOT-MATCHA",
+      "name": "Bột Matcha Uji Nhật Bản",
+      "unit": "g",
+      "stock": 1000,
+      "minThreshold": 100,
+      "category": "Trà"
+    },
+    {
+      "id": "ING-KEM-MUOI",
+      "name": "Kem sữa muối béo mặn",
+      "unit": "ml",
+      "stock": 3000,
+      "minThreshold": 300,
+      "category": "Topping"
+    },
+    {
+      "id": "ING-DUONG-MIA",
+      "name": "Nước đường mía hữu cơ",
+      "unit": "ml",
+      "stock": 5000,
+      "minThreshold": 500,
+      "category": "Đường"
+    },
+    {
+      "id": "ING-DA-BI",
+      "name": "Đá bi tinh khiết",
+      "unit": "g",
+      "stock": 20000,
+      "minThreshold": 2000,
+      "category": "Đá"
+    },
+    {
+      "id": "ING-TRAN-CHAU",
+      "name": "Trân châu đen hoàng kim",
+      "unit": "g",
+      "stock": 3000,
+      "minThreshold": 300,
+      "category": "Topping"
+    }
+  ],
+  "stockLogs": [
+    {
+      "id": "log-1794645406411-f7zp",
+      "orderCode": "BL-405099-8449",
+      "action": "REFUND",
+      "description": "Hoàn kho hủy đơn #BL-405099-8449: +2 ly (prod-001-cf-sua-da, tồn mới: 45 ly), +50g Cà phê hạt Robusta Đắk Lắk, +60ml Sữa đặc Ngôi Sao Phương Nam, +40ml Sữa tươi thanh trùng DalatMilk, +300g Đá bi tinh khiết",
+      "createdAt": "2026-11-14T08:36:46.411Z"
+    },
+    {
+      "id": "log-1794645405101-iey8",
+      "orderCode": "BL-405099-8449",
+      "action": "DEDUCT",
+      "description": "Xuất kho tạo đơn #BL-405099-8449: -2 ly (prod-001-cf-sua-da, còn: 43 ly), -50g Cà phê hạt Robusta Đắk Lắk, -60ml Sữa đặc Ngôi Sao Phương Nam, -40ml Sữa tươi thanh trùng DalatMilk, -300g Đá bi tinh khiết",
+      "createdAt": "2026-11-14T08:36:45.101Z"
+    }
+  ]
+}

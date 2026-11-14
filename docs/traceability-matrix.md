@@ -6,6 +6,7 @@
 ### THÔNG TIN HỒ SƠ THỰC HIỆN (PHÂN CÔNG CHẤM TIẾN ĐỘ TUẦN 9)
 | Thuộc tính | Chi tiết |
 | :--- | :--- |
+| **Họ và tên sinh viên** | **Nguyễn Thành Tài** |
 | **Mã thành viên** | **Phụ 3** |
 | **Vai trò chuyên môn** | **QA & Traceability Lead** |
 | **Tài liệu phụ trách** | `docs/traceability-matrix.md`, `docs/requirements/use-case-checkout.md`, `README.md` |
