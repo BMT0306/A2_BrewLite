@@ -8,6 +8,7 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { ProductsService } from './products.service';
 import { PrismaService } from '../../prisma/prisma.service';
+import { StorageService } from '../../common/storage/storage.service';
 
 describe('ProductsService (Unit Test)', () => {
   let service: ProductsService;
@@ -34,6 +35,7 @@ describe('ProductsService (Unit Test)', () => {
         {
           provide: PrismaService,
           useValue: {
+            isConnected: true,
             product: {
               findMany: jest.fn().mockResolvedValue([mockProduct]),
               findUnique: jest.fn().mockImplementation(({ where }) => {
@@ -41,6 +43,17 @@ describe('ProductsService (Unit Test)', () => {
                 return Promise.resolve(null);
               }),
             },
+          },
+        },
+        {
+          provide: StorageService,
+          useValue: {
+            getProductStock: jest.fn().mockImplementation((id, fallback = 45) => fallback),
+            setProductStock: jest.fn(),
+            getIngredients: jest.fn().mockReturnValue([]),
+            getStockLogs: jest.fn().mockReturnValue([]),
+            restockIngredient: jest.fn(),
+            restockProduct: jest.fn(),
           },
         },
       ],

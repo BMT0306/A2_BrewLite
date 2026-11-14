@@ -5,22 +5,45 @@
  * @project BrewLite - Assignment 2 (Software Engineering)
  */
 
-import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ConflictException, Injectable, NotFoundException } from '@nestjs/common';
 import { OrderStatus, PaymentStatus, Prisma } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
+import { StorageService } from '../../common/storage/storage.service';
 import { CreateOrderDto } from './dto/create-order.dto';
 import { UpdateOrderStatusDto } from './dto/update-order-status.dto';
 import { FALLBACK_PRODUCTS } from '../products/products.service';
 
 @Injectable()
 export class OrdersService {
-  private inMemoryOrders: any[] = [];
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly storageService: StorageService,
+  ) {}
 
-  constructor(private readonly prisma: PrismaService) {}
+  public get inMemoryOrders(): any[] {
+    return this.storageService.getOrders();
+  }
+
+  private enrichOrdersWithRecipe(orders: any[]) {
+    return orders.map((o) => ({
+      ...o,
+      items: (o.items || []).map((it: any) => {
+        const prodMatch = FALLBACK_PRODUCTS.find((p) => p.id === it.productId || p.name === it.product?.name);
+        return {
+          ...it,
+          product: {
+            ...(it.product || {}),
+            recipe: it.product?.recipe || prodMatch?.recipe || 'Nguyên liệu tự nhiên tuyển chọn, pha chế theo công thức Barista BrewLite.',
+          },
+        };
+      }),
+    }));
+  }
 
   async create(userId: string, dto: CreateOrderDto) {
-    try {
-      // Thực thi tạo đơn hàng nguyên tử bên trong Prisma Interactive Transaction
+    if (this.prisma.isConnected) {
+      try {
+        // Thực thi tạo đơn hàng nguyên tử bên trong Prisma Interactive Transaction
       return await this.prisma.$transaction(async (tx) => {
         let subtotal = new Prisma.Decimal(0);
 
@@ -101,6 +124,9 @@ export class OrdersService {
           },
         });
 
+        // Tự động trừ số lượng ly tồn kho món đồ uống và trừ kho nguyên liệu theo định mức công thức BOM
+        this.storageService.deductProductAndIngredients(order.orderCode, dto.items);
+
         return {
           orderId: order.id,
           orderCode: order.orderCode,
@@ -116,8 +142,10 @@ export class OrdersService {
       if (err instanceof NotFoundException || err instanceof ConflictException) {
         throw err;
       }
+    }
+  }
 
-      // Khi PostgreSQL offline, xử lý dự phòng trên bộ nhớ (In-memory fallback)
+  // Khi PostgreSQL offline, xử lý dự phòng trên bộ nhớ (In-memory fallback)
       let subtotal = 0;
       const orderItems = dto.items.map((item) => {
         const prod = FALLBACK_PRODUCTS.find((p) => p.id === item.productId) || {
@@ -128,10 +156,11 @@ export class OrdersService {
           isAvailable: true,
         };
 
-        // Kiểm tra tồn kho ngay trong chế độ dự phòng bộ nhớ
-        if (!prod.isAvailable || (prod.stockQuantity !== undefined && prod.stockQuantity < item.quantity)) {
+        // Kiểm tra tồn kho thời gian thực từ StorageService
+        const currentStock = this.storageService.getProductStock(item.productId, prod.stockQuantity ?? 10);
+        if (currentStock < item.quantity) {
           throw new ConflictException(
-            `Sản phẩm "${prod.name}" hiện không đủ tồn kho (Còn lại: ${prod.stockQuantity ?? 0}, yêu cầu: ${item.quantity}). Vui lòng cập nhật giỏ hàng.`,
+            `Sản phẩm "${prod.name}" hiện không đủ tồn kho (Còn lại: ${currentStock}, yêu cầu: ${item.quantity}). Vui lòng cập nhật giỏ hàng.`,
           );
         }
 
@@ -145,7 +174,10 @@ export class OrdersService {
           quantity: item.quantity,
           unitPrice: Number(item.unitPrice),
           lineTotal,
-          product: prod,
+          product: {
+            ...prod,
+            stockQuantity: currentStock,
+          },
         };
       });
 
@@ -170,7 +202,9 @@ export class OrdersService {
         createdAt: new Date(),
       };
 
-      this.inMemoryOrders.unshift(mockOrder);
+      // Tự động trừ số lượng ly tồn kho món đồ uống và trừ kho nguyên liệu theo định mức công thức BOM
+      this.storageService.deductProductAndIngredients(mockOrder.orderCode, dto.items);
+      this.storageService.saveOrder(mockOrder);
 
       return {
         orderId: mockOrder.id,
@@ -182,71 +216,188 @@ export class OrdersService {
         itemsCount: mockOrder.items.length,
         createdAt: mockOrder.createdAt,
       };
-    }
   }
 
   async findUserOrders(userId: string, role?: string) {
-    try {
-      const where: Prisma.OrderWhereInput = {};
-      if (role !== 'STAFF' && role !== 'MANAGER') {
-        where.userId = userId;
-      }
+    if (this.prisma.isConnected) {
+      try {
+        const where: Prisma.OrderWhereInput = {};
+        if (role !== 'STAFF' && role !== 'MANAGER') {
+          where.userId = userId;
+        }
 
-      const orders = await this.prisma.order.findMany({
-        where,
-        include: {
-          items: {
-            include: { product: true },
+        const orders = await this.prisma.order.findMany({
+          where,
+          include: {
+            items: {
+              include: { product: true },
+            },
+            payments: true,
           },
-          payments: true,
-        },
-        orderBy: { createdAt: 'desc' },
-      });
-      if (orders && orders.length > 0) return orders;
-      return this.inMemoryOrders;
-    } catch {
-      return this.inMemoryOrders;
+          orderBy: { createdAt: 'desc' },
+        });
+        if (orders && orders.length > 0) return this.enrichOrdersWithRecipe(orders);
+      } catch {
+        // Fallback
+      }
     }
+    const all = this.inMemoryOrders;
+    if (role !== 'STAFF' && role !== 'MANAGER') {
+      const userOrders = all.filter((o) => !o.userId || o.userId === userId);
+      return this.enrichOrdersWithRecipe(userOrders);
+    }
+    return this.enrichOrdersWithRecipe(all);
   }
 
   async findOne(id: string) {
-    try {
-      const order = await this.prisma.order.findUnique({
-        where: { id },
-        include: {
-          items: {
-            include: { product: true },
+    if (this.prisma.isConnected) {
+      try {
+        const order = await this.prisma.order.findFirst({
+          where: {
+            OR: [{ id }, { orderCode: id }],
           },
-          payments: true,
-          user: {
-            select: { id: true, fullName: true, email: true, phone: true },
+          include: {
+            items: {
+              include: { product: true },
+            },
+            payments: true,
+            user: {
+              select: { id: true, fullName: true, email: true, phone: true },
+            },
           },
-        },
-      });
-      if (order) return order;
-    } catch {
-      // In-memory fallback
+        });
+        if (order) return this.enrichOrdersWithRecipe([order])[0];
+      } catch {
+        // In-memory fallback
+      }
+    }
+
+    const memoryOrder = this.inMemoryOrders.find((o) => o.id === id || o.orderCode === id);
+    if (!memoryOrder) {
+      throw new NotFoundException(`Không tìm thấy đơn hàng với mã ID ${id}`);
+    }
+    return this.enrichOrdersWithRecipe([memoryOrder])[0];
+  }
+
+  async updateStatus(id: string, dto: UpdateOrderStatusDto) {
+    if (this.prisma.isConnected) {
+      try {
+        const order = await this.prisma.order.findUnique({
+          where: { id },
+          include: { items: true, payments: true },
+        });
+
+        if (order) {
+          // Xử lý Giao dịch bù trừ (Compensating Transaction) khi Hủy đơn hàng (Order Cancellation & Refund)
+          if (dto.status === OrderStatus.CANCELLED) {
+            return await this.prisma.$transaction(async (tx) => {
+              // 1. Tự động hoàn lại số lượng tồn kho cho tất cả món trong đơn
+              for (const item of order.items) {
+                await tx.product.update({
+                  where: { id: item.productId },
+                  data: {
+                    stockQuantity: { increment: item.quantity },
+                  },
+                });
+              }
+
+              // Hoàn trả số lượng ly tồn kho và hoàn trả nguyên liệu kho theo định mức BOM
+              this.storageService.restoreProductAndIngredients(
+                order.orderCode,
+                order.items.map((it) => ({ productId: it.productId, quantity: it.quantity })),
+              );
+
+              // 2. Tự động hoàn tiền (Refund) các giao dịch thanh toán đã thành công
+              for (const payment of order.payments) {
+                if (payment.status === PaymentStatus.PAID) {
+                  await tx.payment.update({
+                    where: { id: payment.id },
+                    data: { status: PaymentStatus.REFUNDED },
+                  });
+                }
+              }
+
+              // 3. Cập nhật trạng thái đơn hàng sang CANCELLED
+              const updated = await tx.order.update({
+                where: { id },
+                data: { status: OrderStatus.CANCELLED },
+                include: { items: true, payments: true },
+              });
+              const hadPaid = order.payments.some((p) => p.status === PaymentStatus.PAID);
+              return {
+                ...updated,
+                ...(hadPaid ? { refundStatus: 'REFUNDED' } : {}),
+              };
+            });
+          }
+
+          return await this.prisma.order.update({
+            where: { id },
+            data: { status: dto.status },
+            include: {
+              items: true,
+              payments: true,
+            },
+          });
+        }
+      } catch {
+        // In-memory fallback khi DB offline
+      }
     }
 
     const memoryOrder = this.inMemoryOrders.find((o) => o.id === id);
     if (!memoryOrder) {
       throw new NotFoundException(`Không tìm thấy đơn hàng với mã ID ${id}`);
     }
+    memoryOrder.status = dto.status;
+    if (dto.status === OrderStatus.CANCELLED) {
+      // Hoàn trả số lượng ly tồn kho và hoàn trả nguyên liệu kho theo định mức BOM
+      if (memoryOrder.items) {
+        this.storageService.restoreProductAndIngredients(
+          memoryOrder.orderCode,
+          memoryOrder.items.map((it: any) => ({ productId: it.productId, quantity: it.quantity })),
+        );
+      }
+
+      // Chỉ đánh dấu hoàn tiền nếu đơn hàng ĐÃ ĐƯỢC THANH TOÁN trước đó
+      let wasPaid = false;
+      if (memoryOrder.payments && memoryOrder.payments.length > 0) {
+        memoryOrder.payments.forEach((p: any) => {
+          if (p.status === 'PAID') {
+            p.status = 'REFUNDED';
+            wasPaid = true;
+          }
+        });
+      }
+      if (wasPaid) {
+        memoryOrder.refundStatus = 'REFUNDED';
+      } else {
+        delete memoryOrder.refundStatus;
+      }
+    }
+    this.storageService.updateOrderStatus(memoryOrder.id, dto.status, memoryOrder.refundStatus);
     return memoryOrder;
   }
 
-  async updateStatus(id: string, dto: UpdateOrderStatusDto) {
-    try {
-      const order = await this.prisma.order.findUnique({
-        where: { id },
-        include: { items: true, payments: true },
-      });
+  /**
+   * Xóa đơn hàng nháp (PENDING) khi khách hàng bấm sửa món hoặc hủy thanh toán
+   * Thực hiện Giao dịch bù trừ tự động hoàn trả số lượng tồn kho
+   */
+  async remove(id: string) {
+    if (this.prisma.isConnected) {
+      try {
+        const order = await this.prisma.order.findUnique({
+          where: { id },
+          include: { items: true, payments: true },
+        });
 
-      if (order) {
-        // Xử lý Giao dịch bù trừ (Compensating Transaction) khi Hủy đơn hàng (Order Cancellation & Refund)
-        if (dto.status === OrderStatus.CANCELLED) {
+        if (order) {
+          if (order.status !== OrderStatus.PENDING) {
+            throw new BadRequestException('Chỉ có thể xóa bỏ đơn hàng đang ở trạng thái Chờ thanh toán (PENDING).');
+          }
+
           return await this.prisma.$transaction(async (tx) => {
-            // 1. Tự động hoàn lại số lượng tồn kho cho tất cả món trong đơn
+            // 1. Tự động hoàn lại số lượng tồn kho cho các món
             for (const item of order.items) {
               await tx.product.update({
                 where: { id: item.productId },
@@ -256,51 +407,44 @@ export class OrdersService {
               });
             }
 
-            // 2. Tự động hoàn tiền (Refund) các giao dịch thanh toán đã thành công
-            for (const payment of order.payments) {
-              if (payment.status === PaymentStatus.PAID) {
-                await tx.payment.update({
-                  where: { id: payment.id },
-                  data: { status: PaymentStatus.REFUNDED },
-                });
-              }
-            }
+            // Hoàn trả số lượng ly tồn kho và hoàn trả nguyên liệu kho theo định mức BOM
+            this.storageService.restoreProductAndIngredients(
+              order.orderCode,
+              order.items.map((it) => ({ productId: it.productId, quantity: it.quantity })),
+            );
 
-            // 3. Cập nhật trạng thái đơn hàng sang CANCELLED
-            return await tx.order.update({
-              where: { id },
-              data: { status: OrderStatus.CANCELLED },
-              include: { items: true, payments: true },
-            });
+            // 2. Xóa chi tiết đơn hàng và đơn hàng
+            await tx.orderItem.deleteMany({ where: { orderId: id } });
+            await tx.order.delete({ where: { id } });
+
+            return { success: true, message: 'Đã hủy đơn nháp và hoàn trả tồn kho thành công', id };
           });
         }
-
-        return await this.prisma.order.update({
-          where: { id },
-          data: { status: dto.status },
-          include: {
-            items: true,
-            payments: true,
-          },
-        });
+      } catch (err: any) {
+        if (err instanceof BadRequestException) throw err;
+        // In-memory fallback khi DB offline
       }
-    } catch {
-      // In-memory fallback khi DB offline
     }
 
-    const memoryOrder = this.inMemoryOrders.find((o) => o.id === id);
-    if (!memoryOrder) {
-      throw new NotFoundException(`Không tìm thấy đơn hàng với mã ID ${id}`);
+    const memIndex = this.inMemoryOrders.findIndex((o) => o.id === id || o.orderCode === id);
+    if (memIndex === -1) {
+      return { success: true, message: 'Đơn hàng không tồn tại hoặc đã được xóa' };
     }
-    memoryOrder.status = dto.status;
-    if (dto.status === OrderStatus.CANCELLED) {
-      if (memoryOrder.payments) {
-        memoryOrder.payments.forEach((p: any) => {
-          if (p.status === 'PAID') p.status = 'REFUNDED';
-        });
-      }
-      memoryOrder.refundStatus = 'REFUNDED';
+
+    const memOrder = this.inMemoryOrders[memIndex];
+    if (memOrder.status !== OrderStatus.PENDING) {
+      throw new BadRequestException('Chỉ có thể xóa bỏ đơn hàng đang ở trạng thái Chờ thanh toán (PENDING).');
     }
-    return memoryOrder;
+
+    // Hoàn trả số lượng ly tồn kho và hoàn trả nguyên liệu kho theo định mức BOM
+    if (memOrder.items) {
+      this.storageService.restoreProductAndIngredients(
+        memOrder.orderCode,
+        memOrder.items.map((it: any) => ({ productId: it.productId, quantity: it.quantity })),
+      );
+    }
+
+    this.storageService.removeOrder(memOrder.id);
+    return { success: true, message: 'Đã hủy đơn nháp và hoàn trả tồn kho thành công', id: memOrder.id };
   }
 }

@@ -43,5 +43,9 @@ apps/api/prisma/migrations/dev.db
 # PDF Specs
 *.pdf
 
+# Binaries
+*.exe
+cloudflared.exe
+
 # TypeScript cache
 *.tsbuildinfo
