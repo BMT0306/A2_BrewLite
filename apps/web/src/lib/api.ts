@@ -1,4 +1,7 @@
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
+const API_BASE =
+  typeof window !== 'undefined'
+    ? '/backend-api'
+    : (process.env.BACKEND_INTERNAL_URL || 'http://127.0.0.1:4000');
 
 export function getStoredToken(): string | null {
   if (typeof window === 'undefined') return null;

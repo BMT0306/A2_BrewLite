@@ -3,7 +3,7 @@
 /**
  * @file orders/page.tsx
  * @description Màn hình Tra cứu Lịch sử Đơn hàng và Theo dõi Trạng thái Pha chế theo thời gian thực (UC-06)
- * @author Hoàng Minh Quân (Phụ 2) - Business Analyst 2 (SRS & Use-case Lead)
+ * @author Trần Lê Minh Tâm - Kỹ sư Trưởng / Chính 1 (System Architect & DevOps Lead)
  * @project BrewLite - Assignment 2 (Software Engineering)
  */
 
@@ -17,9 +17,16 @@ import {
   AlertCircle,
   RefreshCw,
   Search,
-  Filter,
+  Coffee,
+  ArrowRight,
+  ShieldAlert,
+  Sparkles,
+  QrCode,
+  ChefHat,
+  Check,
 } from 'lucide-react';
 import { apiFetch, getStoredToken, getStoredUser } from '../../lib/api';
+import { VietQRModal } from '../../components/VietQRModal';
 
 interface OrderItem {
   id: string;
@@ -30,6 +37,7 @@ interface OrderItem {
   product: {
     name: string;
     imageUrl: string;
+    recipe?: string;
   };
 }
 
@@ -55,8 +63,9 @@ export default function OrdersPage() {
   const [error, setError] = useState<string | null>(null);
   const [currentUser, setCurrentUser] = useState<any>(null);
   const [updatingId, setUpdatingId] = useState<string | null>(null);
+  const [payingOrder, setPayingOrder] = useState<Order | null>(null);
+  const [submittingPayment, setSubmittingPayment] = useState(false);
 
-  // Enhancements for UX / Evaluation
   const [activeTab, setActiveTab] = useState<TabFilter>('ALL');
   const [searchQuery, setSearchQuery] = useState('');
 
@@ -80,7 +89,8 @@ export default function OrdersPage() {
       router.push('/login?redirect=/orders');
       return;
     }
-    setCurrentUser(getStoredUser());
+    const user = getStoredUser();
+    setCurrentUser(user);
     fetchOrders();
   }, [router]);
 
@@ -94,6 +104,60 @@ export default function OrdersPage() {
       await fetchOrders();
     } catch (err: any) {
       alert(err.message || 'Cập nhật trạng thái thất bại');
+    } finally {
+      setUpdatingId(null);
+    }
+  };
+
+  const handleConfirmPaymentFromOrders = async () => {
+    if (!payingOrder) return;
+    setSubmittingPayment(true);
+    try {
+      // 1. Kiểm tra trước trạng thái đơn hàng từ Backend API
+      const check = await apiFetch<any>(`/orders/${payingOrder.id}`).catch(() => null);
+      if (check && (check.status === 'CONFIRMED' || check.status === 'COMPLETED' || check.status === 'PAID')) {
+        setPayingOrder(null);
+        await fetchOrders();
+        return;
+      }
+
+      // 2. Giai đoạn 2: Gọi POST /payments kèm Idempotency-Key
+      const idempotencyKey = crypto.randomUUID();
+      await apiFetch(
+        '/payments',
+        {
+          method: 'POST',
+          body: JSON.stringify({
+            orderId: payingOrder.id,
+            method: 'CARD',
+            simulateFailure: false,
+          }),
+        },
+        idempotencyKey,
+      );
+      setPayingOrder(null);
+      await fetchOrders();
+    } catch (err: any) {
+      // Nếu đơn hàng đã được Webhook SePay xác nhận trước đó
+      setPayingOrder(null);
+      await fetchOrders();
+    } finally {
+      setSubmittingPayment(false);
+    }
+  };
+
+  const handleDeletePendingOrder = async (orderId: string) => {
+    if (!confirm('Bạn có chắc chắn muốn hủy đơn hàng này và hoàn trả tồn kho?')) return;
+    try {
+      setUpdatingId(orderId);
+      await apiFetch(`/orders/${orderId}`, { method: 'DELETE' });
+      if (payingOrder?.id === orderId) {
+        setPayingOrder(null);
+      }
+      await fetchOrders();
+    } catch (err: any) {
+      // Fallback nếu method DELETE chưa hỗ trợ, cập nhật CANCELLED
+      await handleUpdateStatus(orderId, 'CANCELLED');
     } finally {
       setUpdatingId(null);
     }
@@ -118,73 +182,89 @@ export default function OrdersPage() {
     }
   };
 
-  const getStatusBadge = (status: string) => {
-    switch (status) {
+  const getStatusBadge = (order: Order) => {
+    switch (order.status) {
       case 'PENDING':
         return (
-          <span className="bg-amber-50 text-amber-700 border border-amber-200 text-[10px] px-2 py-0.5 rounded-full font-bold">
+          <span className="bg-amber-100 text-amber-900 border border-amber-300 text-xs px-2.5 py-1 rounded-full font-bold">
             Chờ thanh toán
           </span>
         );
       case 'CONFIRMED':
         return (
-          <span className="bg-blue-100 text-blue-800 text-[10px] px-2 py-0.5 rounded-full font-bold">
-            Đã tiếp nhận
+          <span className="bg-emerald-100 text-emerald-900 border border-emerald-300 text-xs px-2.5 py-1 rounded-full font-bold flex items-center gap-1">
+            <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
+            Đã thanh toán ✓
           </span>
         );
       case 'PREPARING':
         return (
-          <span className="bg-amber-100 text-amber-800 text-[10px] px-2 py-0.5 rounded-full font-bold animate-pulse">
+          <span className="bg-amber-500 text-white text-xs px-2.5 py-1 rounded-full font-bold animate-pulse shadow-sm">
             Đang pha chế ☕
           </span>
         );
       case 'READY':
         return (
-          <span className="bg-teal-100 text-teal-800 text-[10px] px-2 py-0.5 rounded-full font-bold">
+          <span className="bg-emerald-600 text-white text-xs px-2.5 py-1 rounded-full font-bold shadow-sm">
             Sẵn sàng nhận 🎉
           </span>
         );
       case 'COMPLETED':
         return (
-          <span className="bg-emerald-100 text-emerald-800 text-[10px] px-2 py-0.5 rounded-full font-bold">
+          <span className="bg-emerald-100 text-emerald-900 border border-emerald-300 text-xs px-2.5 py-1 rounded-full font-bold">
             Đã hoàn tất ✓
           </span>
         );
       case 'PAYMENT_FAILED':
         return (
-          <span className="bg-rose-100 text-rose-800 text-[10px] px-2 py-0.5 rounded-full font-bold">
+          <span className="bg-rose-100 text-rose-800 border border-rose-300 text-xs px-2.5 py-1 rounded-full font-bold">
             Lỗi thanh toán (Hoàn kho)
           </span>
         );
-      case 'CANCELLED':
+      case 'CANCELLED': {
+        const wasRefunded =
+          (order as any).refundStatus === 'REFUNDED' ||
+          (order.payments && order.payments.some((p: any) => p.status === 'REFUNDED' || p.status === 'PAID'));
         return (
-          <span className="bg-rose-100 text-rose-800 text-[10px] px-2 py-0.5 rounded-full font-bold">
-            Đã hủy & Hoàn tiền
+          <span className="bg-rose-100 text-rose-800 border border-rose-300 text-xs px-2.5 py-1 rounded-full font-bold">
+            {wasRefunded ? 'Đã hủy & Hoàn tiền' : 'Đã hủy'}
           </span>
         );
+      }
       default:
         return (
-          <span className="bg-slate-100 text-slate-800 text-[10px] px-2 py-0.5 rounded-full font-bold">
-            {status}
+          <span className="bg-stone-100 text-stone-800 text-xs px-2.5 py-1 rounded-full font-bold">
+            {order.status}
           </span>
         );
     }
   };
 
-  const renderStatusStepper = (status: string) => {
+  const renderStatusStepper = (order: Order) => {
+    const status = order.status;
     const steps = ['CONFIRMED', 'PREPARING', 'READY', 'COMPLETED'];
-    const labels = ['Xác nhận', 'Pha chế', 'Sẵn sàng', 'Đã lấy'];
+    const labels = ['Đã thanh toán', 'Pha chế', 'Sẵn sàng', 'Hoàn tất'];
     const currentIndex = steps.indexOf(status);
 
     if (status === 'CANCELLED') {
+      const wasRefunded =
+        (order as any).refundStatus === 'REFUNDED' ||
+        (order.payments && order.payments.some((p: any) => p.status === 'REFUNDED' || p.status === 'PAID'));
       return (
-        <div className="bg-rose-50 text-rose-700 text-[11px] p-2.5 rounded-xl border border-rose-200 flex items-center justify-between">
-          <div className="flex items-center space-x-1.5">
-            <AlertCircle className="w-4 h-4 text-rose-500 shrink-0" />
-            <span>Đơn đã hủy thành công. Tiền đã hoàn lại ví & kho hàng đã được bù trừ.</span>
+        <div className="bg-rose-50 text-rose-800 text-xs p-3 rounded-xl border border-rose-200 flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <AlertCircle className="w-4 h-4 text-rose-600 shrink-0" />
+            <span>
+              {wasRefunded
+                ? 'Đơn đã hủy thành công. Hệ thống đã hoàn tiền và hoàn kho sản phẩm.'
+                : 'Đơn hàng đã được hủy thành công và đã hoàn lại số lượng tồn kho sản phẩm.'}
+            </span>
           </div>
-          <Link href="/" className="text-[11px] bg-rose-600 hover:bg-rose-700 text-white font-bold px-2.5 py-1 rounded-lg shrink-0 ml-2 transition">
-            Đặt lại món đúng
+          <Link
+            href="/"
+            className="text-xs bg-rose-600 hover:bg-rose-700 text-white font-bold px-3 py-1.5 rounded-lg shrink-0 ml-2 transition"
+          >
+            Đặt lại món
           </Link>
         </div>
       );
@@ -192,42 +272,33 @@ export default function OrdersPage() {
 
     if (status === 'PAYMENT_FAILED') {
       return (
-        <div className="bg-rose-50 text-rose-700 text-[11px] p-2.5 rounded-xl border border-rose-200 flex items-center space-x-2">
-          <AlertCircle className="w-4 h-4 text-rose-500 flex-shrink-0" />
-          <span>Giao dịch thanh toán bị từ chối. Kho hàng đã được bù trừ hoàn trả nguyên vẹn.</span>
-        </div>
-      );
-    }
-
-    if (status === 'CANCELLED') {
-      return (
-        <div className="bg-slate-100 text-slate-600 text-[11px] p-2.5 rounded-xl flex items-center space-x-2">
-          <Clock className="w-4 h-4 text-slate-400 flex-shrink-0" />
-          <span>Đơn hàng đã được ghi nhận hủy bỏ trong hệ thống.</span>
+        <div className="bg-rose-50 text-rose-800 text-xs p-3 rounded-xl border border-rose-200 flex items-center gap-2">
+          <AlertCircle className="w-4 h-4 text-rose-600 flex-shrink-0" />
+          <span>Giao dịch thanh toán bị gián đoạn. Kho hàng đã được bù trừ hoàn trả nguyên vẹn.</span>
         </div>
       );
     }
 
     return (
-      <div className="pt-2 pb-1">
-        <div className="flex justify-between relative">
+      <div className="pt-3 pb-2">
+        <div className="flex justify-between relative max-w-md mx-auto">
           {labels.map((lbl, idx) => {
             const isDone = currentIndex >= idx;
             const isCurrent = currentIndex === idx;
             return (
               <div key={lbl} className="flex flex-col items-center flex-1 relative z-10">
                 <div
-                  className={`w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold transition-all ${
+                  className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-black transition-all ${
                     isDone
-                      ? 'bg-teal-700 text-white shadow'
-                      : 'bg-slate-200 text-slate-500'
-                  } ${isCurrent ? 'ring-2 ring-teal-400 scale-110' : ''}`}
+                      ? 'bg-[#7e4d26] text-white shadow-sm'
+                      : 'bg-stone-200 text-stone-500'
+                  } ${isCurrent ? 'ring-4 ring-amber-300 scale-110' : ''}`}
                 >
                   {isDone ? '✓' : idx + 1}
                 </div>
                 <span
-                  className={`text-[9px] mt-1 text-center leading-none ${
-                    isCurrent ? 'font-bold text-teal-800' : 'text-slate-400'
+                  className={`text-[11px] mt-1.5 text-center leading-tight ${
+                    isCurrent ? 'font-extrabold text-[#7e4d26]' : 'text-stone-400 font-medium'
                   }`}
                 >
                   {lbl}
@@ -235,8 +306,8 @@ export default function OrdersPage() {
               </div>
             );
           })}
-          {/* Connector Line */}
-          <div className="absolute top-3 left-4 right-4 h-0.5 bg-slate-200 -z-0" />
+          {/* Connecting line */}
+          <div className="absolute top-3.5 left-6 right-6 h-0.5 bg-stone-200 -z-0" />
         </div>
       </div>
     );
@@ -244,10 +315,8 @@ export default function OrdersPage() {
 
   const isStaff = currentUser?.role === 'STAFF' || currentUser?.role === 'MANAGER';
 
-  // Filtered orders list based on Tab and Search query
   const filteredOrders = useMemo(() => {
     return orders.filter((order) => {
-      // Tab filter
       if (activeTab === 'ACTIVE') {
         if (!['PENDING', 'CONFIRMED', 'PREPARING', 'READY'].includes(order.status)) {
           return false;
@@ -258,7 +327,6 @@ export default function OrdersPage() {
         if (!['PAYMENT_FAILED', 'CANCELLED'].includes(order.status)) return false;
       }
 
-      // Search query filter
       if (searchQuery.trim()) {
         const q = searchQuery.toLowerCase();
         const matchCode = order.orderCode.toLowerCase().includes(q);
@@ -267,264 +335,315 @@ export default function OrdersPage() {
         );
         return matchCode || matchItem;
       }
-
       return true;
     });
   }, [orders, activeTab, searchQuery]);
 
   return (
-    <div className="p-4 space-y-4">
-      {/* Header */}
-      <div className="flex items-center justify-between pb-2 border-b border-slate-100">
-        <div>
-          <h1 className="text-sm font-bold text-slate-800">
-            {isStaff ? 'Quản lý Đơn hàng (Staff View)' : 'Lịch sử & Theo dõi Đơn'}
-          </h1>
-          <p className="text-[10px] text-slate-400">
-            {orders.length} đơn hàng được đồng bộ
-          </p>
-        </div>
-        <button
-          onClick={fetchOrders}
-          disabled={loading}
-          className="text-slate-500 hover:text-teal-700 p-1.5 rounded-lg border border-slate-200 hover:bg-slate-50 transition flex items-center space-x-1 text-xs"
-          title="Tải lại danh sách"
-        >
-          <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin text-teal-700' : ''}`} />
-          <span className="text-[10px]">Tải lại</span>
-        </button>
-      </div>
-
-      {/* Staff banner */}
-      {isStaff && (
-        <div className="bg-indigo-50 border border-indigo-200 text-indigo-900 rounded-xl p-2.5 text-xs flex items-center space-x-2">
-          <span className="font-bold bg-indigo-700 text-white px-1.5 py-0.5 rounded text-[10px]">
-            STAFF
-          </span>
-          <span>Bạn đang quản lý toàn bộ đơn hàng và có quyền cập nhật tiến trình chế biến.</span>
-        </div>
-      )}
-
-      {/* Filter Tabs & Search Bar */}
-      <div className="space-y-2">
-        <div className="flex bg-slate-100 p-1 rounded-xl text-[11px] font-bold">
-          <button
-            onClick={() => setActiveTab('ALL')}
-            className={`flex-1 py-1.5 rounded-lg transition ${
-              activeTab === 'ALL'
-                ? 'bg-white text-teal-800 shadow-sm'
-                : 'text-slate-500 hover:text-slate-800'
-            }`}
-          >
-            Tất cả ({orders.length})
-          </button>
-          <button
-            onClick={() => setActiveTab('ACTIVE')}
-            className={`flex-1 py-1.5 rounded-lg transition ${
-              activeTab === 'ACTIVE'
-                ? 'bg-white text-teal-800 shadow-sm'
-                : 'text-slate-500 hover:text-slate-800'
-            }`}
-          >
-            Đang xử lý
-          </button>
-          <button
-            onClick={() => setActiveTab('COMPLETED')}
-            className={`flex-1 py-1.5 rounded-lg transition ${
-              activeTab === 'COMPLETED'
-                ? 'bg-white text-teal-800 shadow-sm'
-                : 'text-slate-500 hover:text-slate-800'
-            }`}
-          >
-            Đã xong
-          </button>
-          <button
-            onClick={() => setActiveTab('FAILED')}
-            className={`flex-1 py-1.5 rounded-lg transition ${
-              activeTab === 'FAILED'
-                ? 'bg-white text-teal-800 shadow-sm'
-                : 'text-slate-500 hover:text-slate-800'
-            }`}
-          >
-            Lỗi / Hủy
-          </button>
+    <div className="bg-[#faf7f2] min-h-screen py-6 sm:py-10">
+      <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 space-y-6">
+        {/* Header */}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-4 border-b border-stone-200 gap-3">
+          <div>
+            <h1 className="text-2xl sm:text-3xl font-black text-[#2c1810] tracking-tight">
+              Lịch Sử & Theo Dõi Đơn Hàng
+            </h1>
+            <p className="text-xs sm:text-sm text-stone-500 mt-1">
+              Đồng bộ dữ liệu thời gian thực · Bạn có tổng cộng {orders.length} đơn hàng
+            </p>
+          </div>
+          <div className="flex items-center gap-2 self-start sm:self-auto">
+            {isStaff && (
+              <Link
+                href="/barista"
+                className="bg-amber-600 hover:bg-amber-700 text-white px-3.5 py-2 rounded-xl shadow-xs transition flex items-center gap-1.5 text-xs font-bold"
+              >
+                <ChefHat className="w-4 h-4" />
+                <span>Sang Quầy Barista (KDS)</span>
+              </Link>
+            )}
+            <button
+              onClick={() => fetchOrders()}
+              disabled={loading}
+              className="bg-white hover:bg-stone-50 text-[#7e4d26] px-4 py-2 rounded-xl border border-stone-200 shadow-sm transition flex items-center gap-2 text-xs font-bold cursor-pointer"
+            >
+              <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin text-amber-700' : ''}`} />
+              <span>Làm mới</span>
+            </button>
+          </div>
         </div>
 
-        {/* Quick Search */}
-        {orders.length > 0 && (
-          <div className="relative">
-            <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+        {/* Staff Notice if logged in as staff */}
+        {isStaff && (
+          <div className="bg-amber-900 text-amber-100 rounded-2xl p-4 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div className="flex items-center gap-2.5">
+              <span className="font-black bg-amber-600 text-white px-2 py-0.5 rounded-md text-xs uppercase tracking-wider shrink-0">
+                STAFF
+              </span>
+              <p className="text-xs leading-relaxed">
+                Bạn đang đăng nhập tài khoản nhân viên. Để xem chi tiết công thức chuẩn vị từng món và điều phối trạng thái pha chế, vui lòng truy cập Màn hình Quầy Barista (KDS).
+              </p>
+            </div>
+            <Link
+              href="/barista"
+              className="bg-white hover:bg-amber-50 text-[#7e4d26] font-bold text-xs px-3.5 py-2 rounded-xl shrink-0 transition"
+            >
+              Mở Quầy Barista →
+            </Link>
+          </div>
+        )}
+
+        {/* Filter Tabs & Search */}
+        <div className="flex flex-col sm:flex-row gap-3">
+          <div className="flex bg-stone-200/80 p-1.5 rounded-2xl text-xs font-bold shrink-0">
+            <button
+              onClick={() => setActiveTab('ALL')}
+              className={`px-4 py-2 rounded-xl transition ${
+                activeTab === 'ALL'
+                  ? 'bg-white text-[#7e4d26] shadow-sm'
+                  : 'text-stone-600 hover:text-[#2c1810]'
+              }`}
+            >
+              Tất cả ({orders.length})
+            </button>
+            <button
+              onClick={() => setActiveTab('ACTIVE')}
+              className={`px-4 py-2 rounded-xl transition ${
+                activeTab === 'ACTIVE'
+                  ? 'bg-white text-[#7e4d26] shadow-sm'
+                  : 'text-stone-600 hover:text-[#2c1810]'
+              }`}
+            >
+              Đang xử lý
+            </button>
+            <button
+              onClick={() => setActiveTab('COMPLETED')}
+              className={`px-4 py-2 rounded-xl transition ${
+                activeTab === 'COMPLETED'
+                  ? 'bg-white text-[#7e4d26] shadow-sm'
+                  : 'text-stone-600 hover:text-[#2c1810]'
+              }`}
+            >
+              Đã xong
+            </button>
+            <button
+              onClick={() => setActiveTab('FAILED')}
+              className={`px-4 py-2 rounded-xl transition ${
+                activeTab === 'FAILED'
+                  ? 'bg-white text-[#7e4d26] shadow-sm'
+                  : 'text-stone-600 hover:text-[#2c1810]'
+              }`}
+            >
+              Hủy / Lỗi
+            </button>
+          </div>
+
+          <div className="relative flex-1">
+            <Search className="w-4 h-4 text-stone-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
             <input
               type="text"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Tìm theo mã đơn hoặc tên món..."
-              className="w-full text-xs pl-8 pr-3 py-2 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-teal-600 bg-white"
+              placeholder="Tìm theo mã đơn (ví dụ: ORD-...) hoặc tên món đồ uống..."
+              className="w-full text-xs pl-10 pr-4 py-3 rounded-2xl border border-stone-200 focus:outline-none focus:ring-2 focus:ring-[#7e4d26] bg-white shadow-sm text-[#2c1810]"
             />
+          </div>
+        </div>
+
+        {/* Loading state */}
+        {loading && (
+          <div className="space-y-4">
+            {[1, 2, 3].map((i) => (
+              <div
+                key={i}
+                className="bg-white rounded-2xl p-6 border border-stone-200/80 shadow-sm animate-pulse space-y-3"
+              >
+                <div className="h-5 bg-stone-200 rounded w-1/4" />
+                <div className="h-4 bg-stone-100 rounded w-1/3" />
+                <div className="h-16 bg-stone-50 rounded" />
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* Error state */}
+        {!loading && error && (
+          <div className="bg-rose-50 text-rose-800 text-sm p-6 rounded-2xl border border-rose-200 text-center space-y-3">
+            <AlertCircle className="w-8 h-8 text-rose-600 mx-auto" />
+            <p className="font-semibold">{error}</p>
+            <button
+              onClick={fetchOrders}
+              className="bg-rose-600 hover:bg-rose-700 text-white px-4 py-2 rounded-xl text-xs font-bold transition"
+            >
+              Thử tải lại
+            </button>
+          </div>
+        )}
+
+        {/* Empty state */}
+        {!loading && !error && filteredOrders.length === 0 && (
+          <div className="bg-white border border-stone-200/80 rounded-3xl p-12 text-center space-y-4 shadow-sm min-h-[45vh] flex flex-col justify-center items-center">
+            <div className="w-16 h-16 rounded-2xl bg-amber-100 text-[#7e4d26] flex items-center justify-center">
+              <ClipboardList className="w-8 h-8" />
+            </div>
+            <h3 className="text-lg font-bold text-[#2c1810]">
+              {searchQuery ? 'Không tìm thấy đơn hàng phù hợp' : 'Chưa có đơn hàng nào'}
+            </h3>
+            <p className="text-xs sm:text-sm text-stone-500 max-w-sm">
+              {searchQuery
+                ? 'Hãy thử tìm kiếm với mã đơn khác hoặc kiểm tra lại bộ lọc.'
+                : 'Thưởng thức những tách cà phê thơm ngon tại BrewLite bằng cách đặt món ngay!'}
+            </p>
+            {!searchQuery && (
+              <Link
+                href="/"
+                className="inline-flex items-center gap-2 bg-[#7e4d26] hover:bg-[#5a371b] text-white text-xs font-bold px-5 py-2.5 rounded-xl shadow-md transition"
+              >
+                <Coffee className="w-4 h-4" />
+                <span>Đặt món ngay</span>
+              </Link>
+            )}
+          </div>
+        )}
+
+        {/* Orders List */}
+        {!loading && !error && filteredOrders.length > 0 && (
+          <div className="space-y-4">
+            {filteredOrders.map((order) => (
+              <div
+                key={order.id}
+                className="bg-white rounded-2xl p-5 sm:p-6 border border-stone-200/80 shadow-sm space-y-4 hover:border-amber-400 transition"
+              >
+                {/* Order Top Bar */}
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-3 border-b border-stone-100 gap-2">
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <span className="text-base font-black text-[#2c1810] font-mono">
+                        #{order.orderCode}
+                      </span>
+                      {getStatusBadge(order)}
+                    </div>
+                    <span className="text-xs text-stone-400 mt-0.5 block">
+                      Đặt lúc: {formatDateTime(order.createdAt)}
+                    </span>
+                  </div>
+
+                  <div className="sm:text-right">
+                    <span className="text-xs text-stone-400 block">Tổng tiền</span>
+                    <span className="text-lg font-black text-[#7e4d26]">
+                      {formatCurrency(order.totalAmount)}
+                    </span>
+                  </div>
+                </div>
+
+                {/* Status Stepper */}
+                {renderStatusStepper(order)}
+
+                {/* Items List */}
+                <div className="bg-[#faf7f2] rounded-2xl p-4 space-y-2 text-xs">
+                  {order.items.map((it) => (
+                    <div key={it.id} className="flex justify-between items-center text-stone-700">
+                      <span className="font-semibold truncate pr-3 text-[#2c1810]">
+                        {it.product?.name || 'Đồ uống'} (Size {it.size}) × {it.quantity}
+                      </span>
+                      <span className="font-bold text-[#7e4d26] shrink-0">
+                        {formatCurrency(it.lineTotal)}
+                      </span>
+                    </div>
+                  ))}
+                  {order.note && (
+                    <p className="text-xs text-stone-500 italic pt-2 border-t border-stone-200">
+                      Ghi chú: {order.note}
+                    </p>
+                  )}
+                </div>
+
+                {/* Bottom Actions - Chỉ dành cho Khách hàng */}
+                <div className="flex flex-col sm:flex-row items-center justify-between pt-2 gap-3 border-t border-stone-100">
+                  <span className="text-xs text-stone-400 hidden sm:inline">
+                    Idempotent Order ID: <span className="font-mono text-stone-600">{order.id.slice(0, 8)}...</span>
+                  </span>
+
+                  <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto justify-end">
+                    {order.status === 'PENDING' && (
+                      <>
+                        <button
+                          onClick={() => handleDeletePendingOrder(order.id)}
+                          disabled={updatingId === order.id}
+                          className="text-stone-500 hover:text-rose-700 bg-stone-100 hover:bg-rose-50 border border-stone-200 hover:border-rose-200 text-xs font-bold px-3 py-2 rounded-xl transition cursor-pointer"
+                        >
+                          {updatingId === order.id ? 'Đang hủy...' : 'Hủy đơn hàng'}
+                        </button>
+                        <button
+                          onClick={() => setPayingOrder(order)}
+                          className="bg-[#7e4d26] hover:bg-[#5a371b] text-white text-xs font-bold px-4 py-2 rounded-xl shadow-md transition flex items-center gap-1.5 cursor-pointer animate-pulse"
+                        >
+                          <QrCode className="w-4 h-4" />
+                          <span>Quét mã VietQR thanh toán ngay</span>
+                        </button>
+                      </>
+                    )}
+
+                    {order.status === 'CONFIRMED' && (
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs text-stone-500 hidden sm:inline">
+                          Đã chuyển yêu cầu tới quầy pha chế
+                        </span>
+                        <button
+                          onClick={() => handleUpdateStatus(order.id, 'CANCELLED')}
+                          disabled={updatingId === order.id}
+                          className="text-stone-500 hover:text-rose-700 bg-stone-100 hover:bg-rose-50 border border-stone-200 hover:border-rose-200 text-xs font-semibold px-3 py-2 rounded-xl transition cursor-pointer"
+                        >
+                          {updatingId === order.id ? 'Đang hủy...' : 'Đổi món (Hủy & Hoàn tiền)'}
+                        </button>
+                      </div>
+                    )}
+
+                    {order.status === 'PREPARING' && (
+                      <span className="text-amber-800 bg-amber-50 border border-amber-200 text-xs font-bold px-3.5 py-1.5 rounded-xl flex items-center gap-1.5">
+                        <Coffee className="w-4 h-4 animate-bounce text-amber-600" />
+                        Barista đang chuẩn bị món...
+                      </span>
+                    )}
+
+                    {order.status === 'READY' && (
+                      <span className="text-emerald-800 bg-emerald-50 border border-emerald-200 text-xs font-bold px-3.5 py-1.5 rounded-xl flex items-center gap-1.5 animate-pulse">
+                        <Sparkles className="w-4 h-4 text-emerald-600" />
+                        Mời bạn đến quầy nhận đồ uống!
+                      </span>
+                    )}
+
+                    {order.status === 'COMPLETED' && (
+                      <span className="text-stone-500 text-xs font-medium flex items-center gap-1">
+                        <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+                        Đã giao thành công · Cảm ơn bạn!
+                      </span>
+                    )}
+                  </div>
+                </div>
+              </div>
+            ))}
           </div>
         )}
       </div>
 
-      {/* Loading */}
-      {loading && (
-        <div className="space-y-3">
-          {[1, 2, 3].map((i) => (
-            <div
-              key={i}
-              className="bg-white rounded-xl p-4 border border-slate-100 shadow-sm animate-pulse space-y-2"
-            >
-              <div className="h-4 bg-slate-200 rounded w-1/3" />
-              <div className="h-3 bg-slate-200 rounded w-1/2" />
-              <div className="h-12 bg-slate-100 rounded" />
-            </div>
-          ))}
-        </div>
-      )}
-
-      {/* Error */}
-      {!loading && error && (
-        <div className="bg-rose-50 text-rose-700 text-xs p-4 rounded-xl border border-rose-200 text-center space-y-2">
-          <AlertCircle className="w-6 h-6 text-rose-500 mx-auto" />
-          <p>{error}</p>
-          <button
-            onClick={fetchOrders}
-            className="bg-rose-600 text-white px-3 py-1.5 rounded-lg text-xs font-bold"
-          >
-            Thử lại
-          </button>
-        </div>
-      )}
-
-      {/* Empty State */}
-      {!loading && !error && filteredOrders.length === 0 && (
-        <div className="bg-slate-50 border border-slate-200 rounded-2xl p-8 text-center space-y-3 my-auto min-h-[40vh] flex flex-col justify-center items-center">
-          <ClipboardList className="w-10 h-10 text-slate-300 mx-auto" />
-          <h3 className="text-sm font-bold text-slate-700">
-            {searchQuery ? 'Không tìm thấy đơn hàng phù hợp' : 'Chưa có đơn hàng nào'}
-          </h3>
-          <p className="text-xs text-slate-500 max-w-xs">
-            {searchQuery
-              ? 'Hãy thử tìm kiếm với từ khóa khác hoặc xóa bộ lọc tìm kiếm.'
-              : 'Hãy vào thực đơn chọn món đồ uống yêu thích để trải nghiệm dịch vụ nhé!'}
-          </p>
-          {!searchQuery && (
-            <Link
-              href="/"
-              className="bg-teal-700 hover:bg-teal-800 text-white text-xs font-bold px-4 py-2 rounded-xl shadow transition"
-            >
-              Đặt món ngay
-            </Link>
-          )}
-        </div>
-      )}
-
-      {/* Orders List */}
-      {!loading && !error && filteredOrders.length > 0 && (
-        <div className="space-y-3">
-          {filteredOrders.map((order) => (
-            <div
-              key={order.id}
-              className="bg-white rounded-2xl p-4 border border-slate-100 shadow-sm space-y-3 hover:border-teal-200 transition"
-            >
-              {/* Order Header */}
-              <div className="flex items-center justify-between">
-                <div>
-                  <span className="text-xs font-extrabold text-slate-900 block font-mono">
-                    {order.orderCode}
-                  </span>
-                  <span className="text-[10px] text-slate-400">
-                    {formatDateTime(order.createdAt)}
-                  </span>
-                </div>
-                {getStatusBadge(order.status)}
-              </div>
-
-              {/* Status Stepper */}
-              {renderStatusStepper(order.status)}
-
-              {/* Items List */}
-              <div className="bg-slate-50 rounded-xl p-2.5 space-y-1.5 text-xs">
-                {order.items.map((it) => (
-                  <div key={it.id} className="flex justify-between items-center text-slate-700">
-                    <span className="font-medium truncate pr-2">
-                      {it.product?.name || 'Đồ uống'} (Size {it.size}) x{it.quantity}
-                    </span>
-                    <span className="font-bold text-slate-900 flex-shrink-0">
-                      {formatCurrency(it.lineTotal)}
-                    </span>
-                  </div>
-                ))}
-                {order.note && (
-                  <p className="text-[10px] text-slate-500 italic pt-1 border-t border-slate-200">
-                    Ghi chú: {order.note}
-                  </p>
-                )}
-              </div>
-
-              {/* Total & Staff Actions */}
-              <div className="flex items-center justify-between pt-1 border-t border-slate-100 text-xs">
-                <div>
-                  <span className="text-[10px] text-slate-400 block">Tổng thanh toán:</span>
-                  <span className="font-extrabold text-teal-800 text-sm">
-                    {formatCurrency(order.totalAmount)}
-                  </span>
-                </div>
-
-                {/* Staff Quick Status Update Buttons */}
-                {isStaff ? (
-                  <div className="flex space-x-1.5">
-                    {(order.status === 'CONFIRMED' || order.status === 'PENDING') && (
-                      <button
-                        onClick={() => handleUpdateStatus(order.id, 'CANCELLED')}
-                        disabled={updatingId === order.id}
-                        className="bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 text-[11px] font-bold px-2.5 py-1.5 rounded-lg transition"
-                      >
-                        {updatingId === order.id ? '...' : 'Hủy & Hoàn tiền'}
-                      </button>
-                    )}
-                    {order.status === 'CONFIRMED' && (
-                      <button
-                        onClick={() => handleUpdateStatus(order.id, 'PREPARING')}
-                        disabled={updatingId === order.id}
-                        className="bg-amber-600 hover:bg-amber-700 text-white text-[11px] font-bold px-3 py-1.5 rounded-lg shadow-sm transition active:scale-95"
-                      >
-                        {updatingId === order.id ? '...' : 'Pha chế'}
-                      </button>
-                    )}
-                    {order.status === 'PREPARING' && (
-                      <button
-                        onClick={() => handleUpdateStatus(order.id, 'READY')}
-                        disabled={updatingId === order.id}
-                        className="bg-teal-700 hover:bg-teal-800 text-white text-[11px] font-bold px-3 py-1.5 rounded-lg shadow-sm transition active:scale-95"
-                      >
-                        {updatingId === order.id ? '...' : 'Sẵn sàng'}
-                      </button>
-                    )}
-                    {order.status === 'READY' && (
-                      <button
-                        onClick={() => handleUpdateStatus(order.id, 'COMPLETED')}
-                        disabled={updatingId === order.id}
-                        className="bg-emerald-700 hover:bg-emerald-800 text-white text-[11px] font-bold px-3 py-1.5 rounded-lg shadow-sm transition active:scale-95"
-                      >
-                        {updatingId === order.id ? '...' : 'Hoàn tất'}
-                      </button>
-                    )}
-                  </div>
-                ) : (
-                  (order.status === 'CONFIRMED' || order.status === 'PENDING') && (
-                    <button
-                      onClick={() => handleUpdateStatus(order.id, 'CANCELLED')}
-                      disabled={updatingId === order.id}
-                      className="bg-slate-100 hover:bg-rose-50 text-slate-600 hover:text-rose-700 border border-slate-200 hover:border-rose-200 text-[11px] font-semibold px-2.5 py-1 rounded-lg transition"
-                    >
-                      {updatingId === order.id ? '...' : 'Đổi món (Hủy & Hoàn tiền)'}
-                    </button>
-                  )
-                )}
-              </div>
-            </div>
-          ))}
-        </div>
+      {/* Modal VietQR Napas 24/7 đồng bộ tài khoản MBBank TRAN LE MINH TAM */}
+      {payingOrder && (
+        <VietQRModal
+          isOpen={!!payingOrder}
+          orderId={payingOrder.id}
+          orderCode={payingOrder.orderCode}
+          amount={payingOrder.totalAmount}
+          method="CARD"
+          onClose={() => setPayingOrder(null)}
+          onConfirmPayment={handleConfirmPaymentFromOrders}
+          onPaymentSuccess={async () => {
+            setPayingOrder(null);
+            await fetchOrders();
+          }}
+          onCancelOrder={() => handleDeletePendingOrder(payingOrder.id)}
+          submitting={submittingPayment}
+        />
       )}
     </div>
   );
