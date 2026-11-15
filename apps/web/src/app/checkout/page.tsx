@@ -43,7 +43,7 @@ interface CreateOrderResponse {
 export default function CheckoutPage() {
   const router = useRouter();
   const hydrated = useCartHydrated();
-  const { items, getSubtotal, clearCart } = useCartStore();
+  const { items, getSubtotal, clearCart, promoCode, getDiscountAmount, getTotal } = useCartStore();
 
   const [method] = useState<PaymentMethod>('CARD');
   const [note, setNote] = useState('');
@@ -128,6 +128,7 @@ export default function CheckoutPage() {
             unitPrice: it.unitPrice,
           })),
           note: note.trim() || undefined,
+          promotionCode: promoCode || undefined,
         }),
       });
 
@@ -281,6 +282,8 @@ export default function CheckoutPage() {
   }
 
   const subtotal = items.length > 0 ? getSubtotal() : (pendingOrder ? pendingOrder.totalAmount : 0);
+  const discountAmount = getDiscountAmount();
+  const total = items.length > 0 ? getTotal() : subtotal;
 
   return (
     <div className="bg-[#faf7f2] min-h-screen py-6 sm:py-10">
@@ -458,13 +461,15 @@ export default function CheckoutPage() {
                   <span className="text-emerald-700 font-semibold">Miễn phí</span>
                 </div>
                 <div className="flex justify-between">
-                  <span>Ưu đãi thành viên</span>
-                  <span className="text-stone-400">0 đ</span>
+                  <span>Ưu đãi khuyến mãi</span>
+                  <span className={discountAmount > 0 ? "text-emerald-600 font-bold" : "text-stone-400"}>
+                    {discountAmount > 0 ? `-${formatVND(discountAmount)} (${promoCode})` : '0 đ'}
+                  </span>
                 </div>
 
                 <div className="border-t border-stone-200 pt-3 mt-3 flex justify-between items-baseline">
                   <span className="text-base font-bold text-[#2c1810]">Tổng cộng</span>
-                  <span className="text-2xl font-black text-[#7e4d26]">{formatVND(subtotal)}</span>
+                  <span className="text-2xl font-black text-[#7e4d26]">{formatVND(total)}</span>
                 </div>
               </div>
 
