@@ -119,9 +119,9 @@ export const FALLBACK_PRODUCTS = [
   },
   {
     id: 'prod-006-tra-sen-vang',
-    name: 'Trà Sen Vàng Long Nhãn (TẠM HẾT HÀNG)',
+    name: 'Trà Sen Vàng Long Nhãn',
     description: 'Món đặc sản sen Huế thượng hạng thanh mát kết hợp long nhãn ngọt ngào thơm nức.',
-    recipe: '100ml Cốt trà Ô Long mộc, 25ml Nước vải tươi ngâm, 4 hạt Sen hầm đường phèn, 2 quả Vải thiều mọng nước.',
+    recipe: '100ml Cốt trà Ô Long mộc, 4 hạt Sen hầm đường phèn, 2 quả Long nhãn ngâm đường, 150g Đá bi tinh khiết.',
     category: 'Tea',
     basePrice: 45000,
     imageUrl: 'https://images.unsplash.com/photo-1576092768241-dec231879fc3?w=500&q=80',
@@ -134,8 +134,8 @@ export const FALLBACK_PRODUCTS = [
       { name: 'Hạt sen bùi', price: 10000 },
       { name: 'Củ năng ngâm', price: 8000 },
     ],
-    stockQuantity: 0,
-    isAvailable: false,
+    stockQuantity: 2,
+    isAvailable: true,
     createdAt: new Date('2026-01-01'),
   },
   {

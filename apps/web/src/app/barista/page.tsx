@@ -1157,16 +1157,42 @@ function BaristaContent() {
                     <span className="text-xs font-bold text-stone-600">{formatCurrency(p.basePrice)}</span>
                   </div>
 
-                  <div className="pt-2 border-t border-stone-100 flex items-center justify-between">
-                    <span className="text-xs text-stone-400 font-mono">{p.id}</span>
-                    <button
-                      onClick={() => handleRestockProduct(p.id, 20)}
-                      disabled={restockingId === p.id}
-                      className="bg-[#7e4d26] hover:bg-[#5a371b] text-white font-bold text-xs px-3 py-1.5 rounded-xl transition flex items-center gap-1 shadow-sm cursor-pointer"
-                    >
-                      <Plus className="w-3.5 h-3.5" />
-                      <span>{restockingId === p.id ? '...' : '+20 ly'}</span>
-                    </button>
+                  <div className="pt-2 border-t border-stone-100 flex items-center justify-between gap-1 flex-wrap">
+                    <span className="text-xs text-stone-400 font-mono truncate max-w-[90px]">{p.id}</span>
+                    <div className="flex items-center gap-1">
+                      {p.stockQuantity > 0 && (
+                        <button
+                          onClick={() => handleRestockProduct(p.id, -1)}
+                          disabled={restockingId === p.id}
+                          className="bg-stone-100 hover:bg-stone-200 text-stone-600 font-bold text-xs px-2 py-1.5 rounded-xl transition border border-stone-300 shadow-xs cursor-pointer"
+                          title="Giảm 1 ly tồn kho để phục vụ kịch bản test"
+                        >
+                          -1 ly
+                        </button>
+                      )}
+                      <button
+                        onClick={() => handleRestockProduct(p.id, 1)}
+                        disabled={restockingId === p.id}
+                        className={`font-bold text-xs px-2.5 py-1.5 rounded-xl transition flex items-center gap-1 shadow-xs cursor-pointer ${
+                          p.id === 'prod-006-tra-sen-vang'
+                            ? 'bg-amber-600 hover:bg-amber-700 text-white ring-2 ring-amber-300 font-extrabold'
+                            : 'bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-300'
+                        }`}
+                        title="Bổ sung đúng 1 ly để test kịch bản 2 điện thoại cùng đặt món (Race Condition)"
+                      >
+                        <Plus className="w-3.5 h-3.5" />
+                        <span>{restockingId === p.id ? '...' : '+1 ly'}</span>
+                      </button>
+                      <button
+                        onClick={() => handleRestockProduct(p.id, 20)}
+                        disabled={restockingId === p.id}
+                        className="bg-[#7e4d26] hover:bg-[#5a371b] text-white font-bold text-xs px-3 py-1.5 rounded-xl transition flex items-center gap-1 shadow-sm cursor-pointer"
+                        title="Nạp nhanh 20 ly tồn kho"
+                      >
+                        <Plus className="w-3.5 h-3.5" />
+                        <span>{restockingId === p.id ? '...' : '+20 ly'}</span>
+                      </button>
+                    </div>
                   </div>
                 </div>
               ))}
