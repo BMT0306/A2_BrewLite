@@ -84,7 +84,24 @@ brewlite/
 
 ## 3. HƯỚNG DẪN KHỞI CHẠY HỆ THỐNG (QUICK START GUIDE)
 
-### Cách 1: Khởi chạy nhanh bằng Docker Compose (Khuyên dùng)
+### Cách 1: Khởi chạy 1-Click Presentation Runner (Khuyên dùng khi Demo & Chấm điểm)
+Chỉ với 1 câu lệnh duy nhất từ thư mục gốc dự án:
+```bash
+npm run start:demo
+```
+* **Tự động hóa toàn diện (DevOps Lead – Trần Lê Minh Tâm):**
+  1. Tự động quét và giải phóng dứt điểm cổng mạng `3000` & `4000`, dọn sạch các tiến trình xung đột cũ.
+  2. Khởi động Backend REST API (Port `4000`) kèm cơ chế fallback in-memory store cực nhanh (không bắt buộc phải bật PostgreSQL).
+  3. Tự động kiểm tra Health Check đợi API sẵn sàng rồi mới khởi động Frontend Web Next.js (Port `3000`).
+  4. Mở đường hầm Cloudflare Tunnel và vẽ mã **QR Code** trực tiếp lên Terminal để Thầy/Cô dùng camera điện thoại quét vào trải nghiệm PWA di động.
+  5. Kích hoạt worker đối soát biến động số dư VietQR MBBank qua SePay 24/7.
+* **Địa chỉ truy cập dịch vụ:**
+  - **Khách hàng (PWA Menu & Đặt đơn):** [http://localhost:3000](http://localhost:3000)
+  - **Quầy Barista (Điều phối KDS):** [http://localhost:3000/barista](http://localhost:3000/barista) *(Vào thẳng tài khoản nhân viên)*
+  - **Quản lý Kho (Định mức BOM):** [http://localhost:3000/barista?tab=inventory](http://localhost:3000/barista?tab=inventory)
+  - **Backend REST API:** [http://localhost:4000](http://localhost:4000) (Health Check: `/health`)
+
+### Cách 2: Khởi chạy bằng Docker Compose
 Chỉ với 1 câu lệnh duy nhất:
 ```bash
 # Sao chép file cấu hình môi trường
@@ -97,7 +114,7 @@ docker compose up --build -d
 - **API Swagger/Docs:** [http://localhost:4000](http://localhost:4000)
 - **API Health Check:** [http://localhost:4000/health](http://localhost:4000/health)
 
-### Cách 2: Khởi chạy thủ công ở môi trường phát triển (Local Development)
+### Cách 3: Khởi chạy thủ công ở môi trường phát triển (Local Development)
 
 #### 1. Khởi động Backend API (`apps/api`):
 ```bash

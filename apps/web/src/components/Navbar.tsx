@@ -20,7 +20,14 @@ export default function Navbar() {
   const [user, setUser] = useState<any>(null);
 
   useEffect(() => {
-    setUser(getStoredUser());
+    const storedUser = getStoredUser();
+    // Khi ở các trang khách hàng (Menu, Giỏ hàng, Đơn hàng):
+    // Tuyệt đối không hiển thị tài khoản nhân viên quầy để giữ giao diện khách hàng an toàn & chuẩn mực
+    if (!pathname?.startsWith('/barista') && storedUser && (storedUser.role === 'STAFF' || storedUser.role === 'MANAGER')) {
+      setUser(null);
+    } else {
+      setUser(storedUser);
+    }
   }, [pathname]);
 
   return (
@@ -100,7 +107,7 @@ export default function Navbar() {
             <span>Đơn hàng</span>
           </Link>
 
-          {user && (user.role === 'STAFF' || user.role === 'MANAGER') && (
+          {pathname?.startsWith('/barista') && user && (user.role === 'STAFF' || user.role === 'MANAGER') && (
             <>
               <Link
                 href="/barista"
@@ -139,7 +146,7 @@ export default function Navbar() {
 
         {/* Mobile Header Right */}
         <div className="flex md:hidden items-center gap-2">
-          {user && (user.role === 'STAFF' || user.role === 'MANAGER') && (
+          {pathname?.startsWith('/barista') && user && (user.role === 'STAFF' || user.role === 'MANAGER') && (
             <Link
               href="/barista"
               className={`p-2 rounded-xl ${pathname === '/barista' ? 'bg-amber-600 text-white' : 'text-amber-400'}`}

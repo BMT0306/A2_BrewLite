@@ -78,7 +78,20 @@ function startCloudflareTunnel(port, timeoutMs = 20000) {
   });
 }
 
+function cleanupA1Processes() {
+  try {
+    // Quét và tắt triệt để bất kỳ tiến trình Node nào của A1 hoặc dev-preview-server đang chạy ngầm
+    const psCmd = `Get-CimInstance Win32_Process | Where-Object { $_.Name -eq 'node.exe' -and ($_.CommandLine -like '*dev-preview-server*' -or $_.CommandLine -like '*CNPM\\A1*' -or $_.CommandLine -like '*A1\\brewlite*') } | ForEach-Object { Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue }`;
+    execSync(`powershell -NoProfile -Command "${psCmd.replace(/\r?\n/g, ' ')}"`, { stdio: 'ignore' });
+  } catch (e) {}
+}
+
 function freePort(port) {
+  try {
+    const psCmd = `Get-NetTCPConnection -LocalPort ${port} -ErrorAction SilentlyContinue | Select-Object -ExpandProperty OwningProcess -Unique | ForEach-Object { if ($_ -and $_ -ne 0 -and $_ -ne $PID) { Stop-Process -Id $_ -Force -ErrorAction SilentlyContinue } }`;
+    execSync(`powershell -NoProfile -Command "${psCmd.replace(/\r?\n/g, ' ')}"`, { stdio: 'ignore' });
+  } catch (e) {}
+
   try {
     const output = execSync(`netstat -ano | findstr LISTENING | findstr :${port}`, { encoding: 'utf-8', stdio: ['pipe', 'pipe', 'ignore'] });
     const lines = output.trim().split('\n');
@@ -203,6 +216,7 @@ function cleanup() {
   if (apiProcess) {
     try { apiProcess.kill(); } catch (e) {}
   }
+  cleanupA1Processes();
   freePort(3000);
   freePort(4000);
   console.log('[Dọn dẹp] Đã đóng các cổng 3000, 4000 và dừng dịch vụ sạch sẽ.');
@@ -213,11 +227,12 @@ async function main() {
   console.log('BrewLite Monorepo - Production Demo Runner (Assignment 2)');
   console.log('======================================================================\n');
 
-  // Bước 1: Dọn dẹp cổng mạng
-  console.log('[1/4] Kiểm tra và giải phóng cổng mạng 3000, 4000...');
+  // Bước 1: Dọn dẹp tiến trình A1 cũ và cổng mạng
+  console.log('[1/4] Dọn dẹp toàn diện tiến trình cũ (A1) & giải phóng cổng 3000, 4000...');
+  cleanupA1Processes();
   freePort(4000);
   freePort(3000);
-  console.log('      -> Cổng 3000 và 4000 đã sẵn sàng!\n');
+  console.log('      -> Đã dọn sạch A1! Cổng 3000 và 4000 đã sẵn sàng cho A2.\n');
 
   // Bước 2: Khởi động Backend API
   console.log('[2/4] Khởi động Backend REST API (Port 4000)...');

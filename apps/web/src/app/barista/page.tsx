@@ -36,7 +36,7 @@ import {
   Droplets,
   Boxes,
 } from 'lucide-react';
-import { apiFetch, getStoredToken, getStoredUser } from '../../lib/api';
+import { apiFetch, getStoredToken, getStoredUser, setStoredToken, setStoredUser } from '../../lib/api';
 
 interface OrderItem {
   id: string;
@@ -165,28 +165,63 @@ function BaristaContent() {
   };
 
   useEffect(() => {
-    const token = getStoredToken();
-    if (!token) {
-      router.push('/login?redirect=/barista');
-      return;
-    }
-    const user = getStoredUser();
-    setCurrentUser(user);
+    let isMounted = true;
 
-    if (user?.role === 'STAFF' || user?.role === 'MANAGER') {
-      fetchOrders();
-      fetchInventory();
+    const initBarista = async () => {
+      let token = getStoredToken();
+      let user = getStoredUser();
 
-      // Đồng bộ thời gian thực mỗi 4 giây
-      const timer = setInterval(() => {
+      // Khi truy cập /barista: Tự động kích hoạt đăng nhập thẳng tài khoản nhân viên quầy (staff@brewlite.vn)
+      if (!token || !user || (user.role !== 'STAFF' && user.role !== 'MANAGER')) {
+        try {
+          const res = await apiFetch<any>('/auth/login', {
+            method: 'POST',
+            body: JSON.stringify({ email: 'staff@brewlite.vn', password: 'password123' }),
+          }).catch(async () => {
+            return await apiFetch<any>('/auth/login', {
+              method: 'POST',
+              body: JSON.stringify({ email: 'staff@brewlite.vn', password: '123456' }),
+            });
+          });
+
+          if (res?.accessToken && res?.user) {
+            setStoredToken(res.accessToken);
+            setStoredUser(res.user);
+            token = res.accessToken;
+            user = res.user;
+          }
+        } catch (e) {
+          console.warn('Auto staff login for barista failed:', e);
+        }
+      }
+
+      if (!isMounted) return;
+      setCurrentUser(user);
+
+      if (user?.role === 'STAFF' || user?.role === 'MANAGER') {
+        fetchOrders();
+        fetchInventory();
+      } else {
+        setOrdersLoading(false);
+      }
+    };
+
+    initBarista();
+
+    // Đồng bộ thời gian thực mỗi 4 giây
+    const timer = setInterval(() => {
+      const u = getStoredUser();
+      if (u?.role === 'STAFF' || u?.role === 'MANAGER') {
         fetchOrders(true);
         fetchInventory(true);
-      }, 4000);
-      return () => clearInterval(timer);
-    } else {
-      setOrdersLoading(false);
-    }
-  }, [router]);
+      }
+    }, 4000);
+
+    return () => {
+      isMounted = false;
+      clearInterval(timer);
+    };
+  }, []);
 
   // Cập nhật trạng thái đơn hàng (1 chạm)
   const handleUpdateStatus = async (orderId: string, nextStatus: string) => {

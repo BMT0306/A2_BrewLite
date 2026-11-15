@@ -261,11 +261,13 @@ export class OrdersService {
     });
 
     let discountAmount = 0;
-    if (
-      dto.promotionCode &&
-      dto.promotionCode.toUpperCase().trim() === "WELCOME10"
-    ) {
-      discountAmount = Math.min(subtotal * 0.1, 50000);
+    if (dto.promotionCode) {
+      const pCode = dto.promotionCode.toUpperCase().trim();
+      if (pCode === "WELCOME10" || pCode === "BREW10") {
+        discountAmount = Math.min(Math.round(subtotal * 0.1), 50000);
+      } else if (pCode === "WELCOME20") {
+        discountAmount = Math.min(Math.round(subtotal * 0.2), 50000);
+      }
     }
     const totalAmount = subtotal - discountAmount;
     const randomSuffix = Math.floor(1000 + Math.random() * 9000);

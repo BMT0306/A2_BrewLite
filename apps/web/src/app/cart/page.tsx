@@ -33,11 +33,43 @@ import { VietQRModal } from '../../components/VietQRModal';
 export default function CartPage() {
   const router = useRouter();
   const hydrated = useCartHydrated();
-  const { items, updateQuantity, removeItem, clearCart, getSubtotal } = useCartStore();
+  const {
+    items,
+    updateQuantity,
+    removeItem,
+    clearCart,
+    getSubtotal,
+    promoCode,
+    applyPromo,
+    removePromo,
+    getDiscountAmount,
+    getTotal,
+  } = useCartStore();
+
+  const [promoInput, setPromoInput] = useState(promoCode || 'WELCOME10');
+  const [promoMsg, setPromoMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(
+    promoCode ? { type: 'success', text: `Đang áp dụng mã ${promoCode}` } : null,
+  );
 
   const [pendingOrder, setPendingOrder] = useState<any | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [cancellingPending, setCancellingPending] = useState(false);
+
+  const handleApplyPromo = () => {
+    if (!promoInput.trim()) return;
+    const res = applyPromo(promoInput);
+    if (res.success) {
+      setPromoMsg({ type: 'success', text: res.message });
+    } else {
+      setPromoMsg({ type: 'error', text: res.message });
+    }
+  };
+
+  const handleRemovePromo = () => {
+    removePromo();
+    setPromoMsg(null);
+    setPromoInput('');
+  };
 
   // Kiểm tra xem có đơn hàng nào đang chờ thanh toán (PENDING) không
   const fetchPendingOrder = async () => {
@@ -159,6 +191,8 @@ export default function CartPage() {
   }
 
   const subtotal = getSubtotal();
+  const discountAmount = getDiscountAmount();
+  const total = getTotal();
 
   const handleCheckout = () => {
     router.push(getStoredToken() ? '/checkout' : '/login?redirect=/checkout');
@@ -309,21 +343,91 @@ export default function CartPage() {
               </h3>
 
               {/* Mã giảm giá */}
-              <div className="flex gap-2">
-                <div className="relative flex-1">
-                  <Tag className="w-4 h-4 text-stone-400 absolute left-3 top-3" />
-                  <input
-                    placeholder="Mã giảm giá (WELCOME10)"
-                    defaultValue="WELCOME10"
-                    className="w-full pl-9 pr-3 py-2 text-xs uppercase font-semibold border border-stone-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#7e4d26] bg-[#faf7f2]/50 text-[#2c1810]"
-                  />
+              <div className="space-y-2">
+                <div className="flex gap-2">
+                  <div className="relative flex-1">
+                    <Tag className="w-4 h-4 text-stone-400 absolute left-3 top-3" />
+                    <input
+                      value={promoInput}
+                      onChange={(e) => {
+                        setPromoInput(e.target.value.toUpperCase());
+                        if (promoMsg) setPromoMsg(null);
+                      }}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') {
+                          e.preventDefault();
+                          handleApplyPromo();
+                        }
+                      }}
+                      placeholder="Mã giảm giá (WELCOME10)"
+                      className="w-full pl-9 pr-3 py-2 text-xs uppercase font-semibold border border-stone-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#7e4d26] bg-[#faf7f2]/50 text-[#2c1810]"
+                    />
+                  </div>
+                  <button
+                    type="button"
+                    onClick={handleApplyPromo}
+                    className="bg-[#7e4d26] hover:bg-[#5a371b] text-white text-xs font-bold px-4 py-2 rounded-xl transition shadow-xs cursor-pointer"
+                  >
+                    Áp dụng
+                  </button>
                 </div>
-                <button
-                  type="button"
-                  className="bg-stone-100 hover:bg-stone-200 text-stone-700 text-xs font-bold px-3 py-2 rounded-xl transition"
-                >
-                  Áp dụng
-                </button>
+
+                {/* Gợi ý mã & Chip bấm nhanh */}
+                <div className="flex flex-wrap items-center justify-between gap-1 text-[11px]">
+                  <span className="text-stone-400 font-medium">Gợi ý mã ưu đãi:</span>
+                  <div className="flex gap-1.5">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setPromoInput('WELCOME10');
+                        const res = applyPromo('WELCOME10');
+                        setPromoMsg({ type: 'success', text: res.message });
+                      }}
+                      className="px-2 py-0.5 rounded-lg bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-200 font-bold cursor-pointer transition text-[10px]"
+                    >
+                      WELCOME10 (-10%)
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setPromoInput('WELCOME20');
+                        const res = applyPromo('WELCOME20');
+                        setPromoMsg({ type: 'success', text: res.message });
+                      }}
+                      className="px-2 py-0.5 rounded-lg bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-200 font-bold cursor-pointer transition text-[10px]"
+                    >
+                      WELCOME20 (-20%)
+                    </button>
+                  </div>
+                </div>
+
+                {promoMsg && (
+                  <div
+                    className={`text-xs px-3 py-2 rounded-xl flex items-center justify-between ${
+                      promoMsg.type === 'success'
+                        ? 'bg-emerald-50 text-emerald-800 border border-emerald-200'
+                        : 'bg-rose-50 text-rose-800 border border-rose-200'
+                    }`}
+                  >
+                    <div className="flex items-center gap-1.5">
+                      {promoMsg.type === 'success' ? (
+                        <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                      ) : (
+                        <AlertCircle className="w-3.5 h-3.5 text-rose-600 shrink-0" />
+                      )}
+                      <span>{promoMsg.text}</span>
+                    </div>
+                    {promoMsg.type === 'success' && (
+                      <button
+                        type="button"
+                        onClick={handleRemovePromo}
+                        className="text-stone-400 hover:text-rose-600 text-[10px] font-bold underline cursor-pointer ml-2"
+                      >
+                        Hủy mã
+                      </button>
+                    )}
+                  </div>
+                )}
               </div>
 
               <div className="space-y-2.5 text-sm text-stone-600 pt-2 border-t border-stone-100">
@@ -337,12 +441,14 @@ export default function CartPage() {
                 </div>
                 <div className="flex justify-between">
                   <span>Giảm giá khuyến mãi</span>
-                  <span className="text-stone-400">0 đ</span>
+                  <span className={discountAmount > 0 ? 'text-emerald-600 font-bold' : 'text-stone-400'}>
+                    {discountAmount > 0 ? `-${formatVND(discountAmount)}` : '0 đ'}
+                  </span>
                 </div>
 
                 <div className="border-t border-stone-200 pt-3 mt-3 flex justify-between items-baseline">
                   <span className="text-base font-bold text-[#2c1810]">Thành tiền</span>
-                  <span className="text-2xl font-black text-[#7e4d26]">{formatVND(subtotal)}</span>
+                  <span className="text-2xl font-black text-[#7e4d26]">{formatVND(total)}</span>
                 </div>
               </div>
 

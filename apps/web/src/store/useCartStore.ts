@@ -54,17 +54,25 @@ function clampQuantity(quantity: number, stockQuantity: number): number {
 
 interface CartState {
   items: CartItem[];
+  promoCode: string | null;
+  discountPercent: number;
   addItem: (item: NewCartItem) => void;
   updateQuantity: (itemId: string, quantity: number) => void;
   removeItem: (itemId: string) => void;
   clearCart: () => void;
+  applyPromo: (code: string) => { success: boolean; message: string; discountPercent?: number; discountAmount?: number };
+  removePromo: () => void;
   getSubtotal: () => number;
+  getDiscountAmount: () => number;
+  getTotal: () => number;
 }
 
 export const useCartStore = create<CartState>()(
   persist(
     (set, get) => ({
       items: [],
+      promoCode: null,
+      discountPercent: 0,
 
       // Thêm món mới, hoặc cộng dồn số lượng nếu đã có món cùng cấu hình
       addItem: (newItem) => {
@@ -97,10 +105,56 @@ export const useCartStore = create<CartState>()(
         set({ items: get().items.filter((it) => it.id !== itemId) });
       },
 
+      applyPromo: (code: string) => {
+        const clean = code.trim().toUpperCase();
+        const subtotal = get().getSubtotal();
+        if (clean === 'WELCOME10' || clean === 'BREW10') {
+          const discount = Math.min(Math.round(subtotal * 0.1), 50000);
+          set({ promoCode: clean, discountPercent: 10 });
+          return {
+            success: true,
+            message: `Áp dụng thành công mã ${clean} (Giảm 10%)`,
+            discountPercent: 10,
+            discountAmount: discount,
+          };
+        } else if (clean === 'WELCOME20') {
+          const discount = Math.min(Math.round(subtotal * 0.2), 50000);
+          set({ promoCode: clean, discountPercent: 20 });
+          return {
+            success: true,
+            message: `Áp dụng thành công mã ${clean} (Giảm 20%)`,
+            discountPercent: 20,
+            discountAmount: discount,
+          };
+        } else {
+          return {
+            success: false,
+            message: 'Mã ưu đãi không hợp lệ (Gợi ý: WELCOME10, BREW10, WELCOME20)',
+          };
+        }
+      },
+
+      removePromo: () => {
+        set({ promoCode: null, discountPercent: 0 });
+      },
+
       // Gọi sau khi thanh toán thành công
-      clearCart: () => set({ items: [] }),
+      clearCart: () => set({ items: [], promoCode: null, discountPercent: 0 }),
 
       getSubtotal: () => get().items.reduce((sum, it) => sum + calcLineTotal(it), 0),
+
+      getDiscountAmount: () => {
+        const subtotal = get().getSubtotal();
+        const pct = get().discountPercent || 0;
+        if (pct <= 0) return 0;
+        return Math.min(Math.round((subtotal * pct) / 100), 50000);
+      },
+
+      getTotal: () => {
+        const subtotal = get().getSubtotal();
+        const discount = get().getDiscountAmount();
+        return Math.max(0, subtotal - discount);
+      },
     }),
     {
       name: 'brewlite_cart_v1', // Khóa LocalStorage theo đặc tả

@@ -136,7 +136,15 @@ export default function MenuPage() {
 
 /* ---------- Thẻ sản phẩm Card: Tối giản, sang trọng, không rối mắt ---------- */
 function ProductCard({ product }: { product: Product }) {
-  const isOutOfStock = product.stockQuantity <= 0 || !product.isAvailable;
+  const price = product.basePrice ?? (product as any).price ?? 35000;
+  const stock = product.stockQuantity !== undefined ? product.stockQuantity : ((product as any).stock ?? 50);
+  const available = product.isAvailable !== undefined ? product.isAvailable : stock > 0;
+  const isOutOfStock = stock <= 0 || !available;
+  const categoryLabel = product.category || 'Coffee';
+  const desc = product.description || 'Thức uống đặc trưng thơm ngon tại BrewLite Roastery.';
+  const imgUrl = product.imageUrl && product.imageUrl.startsWith('/')
+    ? product.imageUrl
+    : (product.imageUrl || DEFAULT_IMAGE_FALLBACK);
 
   return (
     <Link
@@ -149,7 +157,7 @@ function ProductCard({ product }: { product: Product }) {
         {/* Ảnh món */}
         <div className="relative h-48 sm:h-52 w-full overflow-hidden bg-stone-100">
           <img
-            src={product.imageUrl}
+            src={imgUrl}
             alt={product.name}
             className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
             loading="lazy"
@@ -166,14 +174,14 @@ function ProductCard({ product }: { product: Product }) {
             </span>
           ) : (
             <span className="absolute top-3 left-3 bg-black/60 backdrop-blur-md text-amber-200 text-[10px] font-bold px-2.5 py-0.5 rounded-full">
-              {product.category}
+              {categoryLabel}
             </span>
           )}
 
           {/* Badge tồn kho */}
-          {!isOutOfStock && product.stockQuantity < 10 && (
+          {!isOutOfStock && stock < 10 && (
             <span className="absolute top-3 right-3 bg-amber-500 text-white text-[10px] font-bold px-2 py-0.5 rounded-full shadow">
-              Còn {product.stockQuantity} ly
+              Còn {stock} ly
             </span>
           )}
         </div>
@@ -184,7 +192,7 @@ function ProductCard({ product }: { product: Product }) {
             {product.name}
           </h3>
           <p className="text-xs text-stone-500 line-clamp-2 leading-relaxed">
-            {product.description}
+            {desc}
           </p>
         </div>
       </div>
@@ -194,7 +202,7 @@ function ProductCard({ product }: { product: Product }) {
         <div>
           <span className="text-[10px] text-stone-400 block">Giá từ</span>
           <span className="text-base font-extrabold text-[#7e4d26]">
-            {formatVND(product.basePrice)}
+            {formatVND(price)}
           </span>
         </div>
 

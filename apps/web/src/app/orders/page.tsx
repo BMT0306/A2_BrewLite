@@ -329,9 +329,10 @@ export default function OrdersPage() {
 
       if (searchQuery.trim()) {
         const q = searchQuery.toLowerCase();
-        const matchCode = order.orderCode.toLowerCase().includes(q);
-        const matchItem = order.items.some((it) =>
-          it.product?.name?.toLowerCase().includes(q),
+        const code = String(order.orderCode || order.id || '');
+        const matchCode = code.toLowerCase().includes(q);
+        const matchItem = (order.items || []).some((it) =>
+          it?.product?.name?.toLowerCase().includes(q),
         );
         return matchCode || matchItem;
       }
@@ -519,7 +520,7 @@ export default function OrdersPage() {
                   <div>
                     <div className="flex items-center gap-2">
                       <span className="text-base font-black text-[#2c1810] font-mono">
-                        #{order.orderCode}
+                        #{order.orderCode || order.id}
                       </span>
                       {getStatusBadge(order)}
                     </div>
@@ -531,7 +532,7 @@ export default function OrdersPage() {
                   <div className="sm:text-right">
                     <span className="text-xs text-stone-400 block">Tổng tiền</span>
                     <span className="text-lg font-black text-[#7e4d26]">
-                      {formatCurrency(order.totalAmount)}
+                      {formatCurrency(order.totalAmount || (order as any).total || 0)}
                     </span>
                   </div>
                 </div>
@@ -541,13 +542,13 @@ export default function OrdersPage() {
 
                 {/* Items List */}
                 <div className="bg-[#faf7f2] rounded-2xl p-4 space-y-2 text-xs">
-                  {order.items.map((it) => (
+                  {(order.items || []).map((it) => (
                     <div key={it.id} className="flex justify-between items-center text-stone-700">
                       <span className="font-semibold truncate pr-3 text-[#2c1810]">
-                        {it.product?.name || 'Đồ uống'} (Size {it.size}) × {it.quantity}
+                        {it.product?.name || (it as any).name || 'Đồ uống'} (Size {it.size || 'M'}) × {it.quantity || (it as any).qty || 1}
                       </span>
                       <span className="font-bold text-[#7e4d26] shrink-0">
-                        {formatCurrency(it.lineTotal)}
+                        {formatCurrency(it.lineTotal || (it as any).price || 0)}
                       </span>
                     </div>
                   ))}
