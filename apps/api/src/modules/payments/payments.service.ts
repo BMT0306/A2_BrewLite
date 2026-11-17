@@ -36,6 +36,8 @@ export class PaymentsService implements OnModuleInit, OnModuleDestroy {
       console.log('[SePay Auto-Sync] Đã kích hoạt đối soát tự động qua SePay User API (Pull 2.5s)');
       await this.seedExistingSepayTransactions(token.trim());
       this.startSepayPolling(token.trim());
+    } else {
+      console.warn('[SePay Auto-Sync] Chưa cấu hình biến môi trường SEPAY_API_TOKEN (chỉ lắng nghe Webhook IPN).');
     }
   }
 
@@ -57,19 +59,41 @@ export class PaymentsService implements OnModuleInit, OnModuleDestroy {
           },
         },
       );
-      if (!res.ok) return;
+      if (!res.ok) {
+        console.warn(`[SePay Auto-Sync] seedExistingSepayTransactions trả về HTTP ${res.status}`);
+        return;
+      }
       const data: any = await res.json().catch(() => ({}));
       const transactions = data.transactions || [];
-      const orders = this.storageService.getOrders();
+
+      const pendingOrderCodes: string[] = [];
+      if (this.prisma.isConnected) {
+        try {
+          const dbPending = await this.prisma.order.findMany({
+            where: { status: OrderStatus.PENDING },
+            select: { orderCode: true },
+          });
+          for (const o of dbPending) {
+            if (o.orderCode) pendingOrderCodes.push(o.orderCode);
+          }
+        } catch {
+          // Fallback
+        }
+      }
+      for (const o of this.storageService.getOrders()) {
+        if (o.status === OrderStatus.PENDING && o.orderCode) {
+          pendingOrderCodes.push(o.orderCode);
+        }
+      }
+
       for (const txn of transactions) {
         const ref = String(txn.reference_number || txn.id);
         const txnId = String(txn.id);
         const content = String(txn.transaction_content || '').toUpperCase();
-        const hasMatchingPending = orders.some((o) => {
-          if (o.status !== OrderStatus.PENDING) return false;
-          const cleanCode = o.orderCode.replace(/[^A-Z0-9]/g, '');
-          const cleanContent = content.replace(/[^A-Z0-9]/g, '');
-          return cleanContent.includes(cleanCode);
+        const cleanContent = content.replace(/[^A-Z0-9]/g, '');
+        const hasMatchingPending = pendingOrderCodes.some((code) => {
+          const cleanCode = code.replace(/[^A-Z0-9]/g, '');
+          return cleanCode && cleanContent.includes(cleanCode);
         });
         if (!hasMatchingPending) {
           this.storageService.markSepayTxnProcessed(ref, txnId);

@@ -97,7 +97,10 @@ export default function CartPage() {
     if (!confirm('Bạn có chắc chắn muốn hủy đơn hàng đang chờ thanh toán này và hoàn trả lại kho?')) return;
     try {
       setCancellingPending(true);
-      await apiFetch(`/orders/${pendingOrder.id}`, { method: 'DELETE' });
+      await apiFetch(`/orders/${pendingOrder.id}/status`, {
+        method: 'PATCH',
+        body: JSON.stringify({ status: 'CANCELLED' }),
+      });
       setPendingOrder(null);
       setIsModalOpen(false);
     } catch (err: any) {

@@ -150,14 +150,16 @@ export default function OrdersPage() {
     if (!confirm('Bạn có chắc chắn muốn hủy đơn hàng này và hoàn trả tồn kho?')) return;
     try {
       setUpdatingId(orderId);
-      await apiFetch(`/orders/${orderId}`, { method: 'DELETE' });
+      await apiFetch<any>(`/orders/${orderId}/status`, {
+        method: 'PATCH',
+        body: JSON.stringify({ status: 'CANCELLED' }),
+      });
       if (payingOrder?.id === orderId) {
         setPayingOrder(null);
       }
       await fetchOrders();
     } catch (err: any) {
-      // Fallback nếu method DELETE chưa hỗ trợ, cập nhật CANCELLED
-      await handleUpdateStatus(orderId, 'CANCELLED');
+      alert(err.message || 'Không thể hủy đơn hàng');
     } finally {
       setUpdatingId(null);
     }

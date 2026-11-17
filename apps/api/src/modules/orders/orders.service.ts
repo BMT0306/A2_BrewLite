@@ -385,6 +385,9 @@ export class OrdersService {
         if (order) {
           // Xử lý Giao dịch bù trừ (Compensating Transaction) khi Hủy đơn hàng (Order Cancellation & Refund)
           if (dto.status === OrderStatus.CANCELLED) {
+            if (order.status === OrderStatus.CANCELLED) {
+              return order;
+            }
             return await this.prisma.$transaction(async (tx) => {
               // 1. Tự động hoàn lại số lượng tồn kho cho tất cả món trong đơn
               for (const item of order.items) {
@@ -392,6 +395,7 @@ export class OrdersService {
                   where: { id: item.productId },
                   data: {
                     stockQuantity: { increment: item.quantity },
+                    isAvailable: true,
                   },
                 });
               }
@@ -448,6 +452,9 @@ export class OrdersService {
     const memoryOrder = this.inMemoryOrders.find((o) => o.id === id);
     if (!memoryOrder) {
       throw new NotFoundException(`Không tìm thấy đơn hàng với mã ID ${id}`);
+    }
+    if (dto.status === OrderStatus.CANCELLED && memoryOrder.status === OrderStatus.CANCELLED) {
+      return memoryOrder;
     }
     memoryOrder.status = dto.status;
     if (dto.status === OrderStatus.CANCELLED) {
