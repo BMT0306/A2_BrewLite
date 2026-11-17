@@ -33,6 +33,29 @@ export function setStoredUser(user: any) {
   }
 }
 
+export function getBaristaToken(): string | null {
+  if (typeof window === 'undefined') return null;
+  return sessionStorage.getItem('brewlite_barista_token');
+}
+
+export function setBaristaToken(token: string) {
+  if (typeof window !== 'undefined') {
+    sessionStorage.setItem('brewlite_barista_token', token);
+  }
+}
+
+export function getBaristaUser(): any | null {
+  if (typeof window === 'undefined') return null;
+  const user = sessionStorage.getItem('brewlite_barista_user');
+  return user ? JSON.parse(user) : null;
+}
+
+export function setBaristaUser(user: any) {
+  if (typeof window !== 'undefined') {
+    sessionStorage.setItem('brewlite_barista_user', JSON.stringify(user));
+  }
+}
+
 export async function apiFetch<T>(
   endpoint: string,
   options: RequestInit = {},
@@ -44,7 +67,7 @@ export async function apiFetch<T>(
     ...(options.headers as Record<string, string>),
   };
 
-  if (token) {
+  if (!headers['Authorization'] && token) {
     headers['Authorization'] = `Bearer ${token}`;
   }
 

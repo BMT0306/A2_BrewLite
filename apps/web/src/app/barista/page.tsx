@@ -36,7 +36,15 @@ import {
   Droplets,
   Boxes,
 } from 'lucide-react';
-import { apiFetch, getStoredToken, getStoredUser, setStoredToken, setStoredUser } from '../../lib/api';
+import {
+  apiFetch,
+  getStoredToken,
+  getStoredUser,
+  getBaristaToken,
+  setBaristaToken,
+  getBaristaUser,
+  setBaristaUser,
+} from '../../lib/api';
 
 interface OrderItem {
   id: string;
@@ -130,12 +138,19 @@ function BaristaContent() {
     else if (tabParam === 'kds') setMainTab('KDS');
   }, [searchParams]);
 
+  const getAuthHeaders = () => {
+    const token = getBaristaToken() || (getStoredUser()?.role === 'STAFF' || getStoredUser()?.role === 'MANAGER' ? getStoredToken() : null);
+    return token ? { Authorization: `Bearer ${token}` } : {};
+  };
+
   // Tải danh sách đơn hàng cho quầy KDS
   const fetchOrders = async (silent = false) => {
     try {
       if (!silent) setOrdersLoading(true);
       setOrdersError(null);
-      const data = await apiFetch<Order[]>('/orders');
+      const data = await apiFetch<Order[]>('/orders', {
+        headers: getAuthHeaders(),
+      });
       setOrders(data);
     } catch (err: any) {
       if (!silent) {
@@ -150,7 +165,9 @@ function BaristaContent() {
   const fetchInventory = async (silent = false) => {
     try {
       if (!silent) setInventoryLoading(true);
-      const data = await apiFetch<any>('/products/inventory/overview');
+      const data = await apiFetch<any>('/products/inventory/overview', {
+        headers: getAuthHeaders(),
+      });
       if (data) {
         if (Array.isArray(data.ingredients)) setIngredients(data.ingredients);
         if (Array.isArray(data.stockLogs)) setStockLogs(data.stockLogs);
@@ -168,10 +185,16 @@ function BaristaContent() {
     let isMounted = true;
 
     const initBarista = async () => {
-      let token = getStoredToken();
-      let user = getStoredUser();
+      let token = getBaristaToken();
+      let user = getBaristaUser();
 
-      // Khi truy cập /barista: Tự động kích hoạt đăng nhập thẳng tài khoản nhân viên quầy (staff@brewlite.vn)
+      const storedUser = getStoredUser();
+      if (!user && storedUser && (storedUser.role === 'STAFF' || storedUser.role === 'MANAGER')) {
+        token = getStoredToken();
+        user = storedUser;
+      }
+
+      // Khi truy cập /barista: Tự động kích hoạt đăng nhập nhân viên quầy vào sessionStorage (tuyệt đối không đè lên localStorage của khách hàng)
       if (!token || !user || (user.role !== 'STAFF' && user.role !== 'MANAGER')) {
         try {
           const res = await apiFetch<any>('/auth/login', {
@@ -185,8 +208,8 @@ function BaristaContent() {
           });
 
           if (res?.accessToken && res?.user) {
-            setStoredToken(res.accessToken);
-            setStoredUser(res.user);
+            setBaristaToken(res.accessToken);
+            setBaristaUser(res.user);
             token = res.accessToken;
             user = res.user;
           }
@@ -210,7 +233,7 @@ function BaristaContent() {
 
     // Đồng bộ thời gian thực mỗi 4 giây
     const timer = setInterval(() => {
-      const u = getStoredUser();
+      const u = getBaristaUser() || getStoredUser();
       if (u?.role === 'STAFF' || u?.role === 'MANAGER') {
         fetchOrders(true);
         fetchInventory(true);
@@ -229,6 +252,7 @@ function BaristaContent() {
       setUpdatingId(orderId);
       await apiFetch<any>(`/orders/${orderId}/status`, {
         method: 'PATCH',
+        headers: getAuthHeaders(),
         body: JSON.stringify({ status: nextStatus }),
       });
       await Promise.all([fetchOrders(true), fetchInventory(true)]);
@@ -245,6 +269,7 @@ function BaristaContent() {
       setRestockingId(ingredientId);
       await apiFetch<any>('/products/inventory/restock', {
         method: 'POST',
+        headers: getAuthHeaders(),
         body: JSON.stringify({ ingredientId, amount }),
       });
       await fetchInventory(true);
@@ -261,6 +286,7 @@ function BaristaContent() {
       setRestockingId(productId);
       await apiFetch<any>('/products/inventory/restock', {
         method: 'POST',
+        headers: getAuthHeaders(),
         body: JSON.stringify({ productId, amount }),
       });
       await fetchInventory(true);

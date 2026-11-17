@@ -11,7 +11,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { Coffee, ShoppingBag, ClipboardList, User, ChefHat, Package } from 'lucide-react';
 import { useCartStore, useCartHydrated } from '../store/useCartStore';
-import { getStoredUser } from '../lib/api';
+import { getStoredUser, removeStoredToken } from '../lib/api';
 
 export default function Navbar() {
   const pathname = usePathname();
@@ -21,9 +21,10 @@ export default function Navbar() {
 
   useEffect(() => {
     const storedUser = getStoredUser();
-    // Khi ở các trang khách hàng (Menu, Giỏ hàng, Đơn hàng):
-    // Tuyệt đối không hiển thị tài khoản nhân viên quầy để giữ giao diện khách hàng an toàn & chuẩn mực
+    // Khi ở các trang khách hàng (Menu, Giỏ hàng, Đơn hàng, Checkout):
+    // Tuyệt đối dọn sạch tài khoản nhân viên quầy ra khỏi localStorage để khách hàng luôn có trải nghiệm thuần túy
     if (!pathname?.startsWith('/barista') && storedUser && (storedUser.role === 'STAFF' || storedUser.role === 'MANAGER')) {
+      removeStoredToken();
       setUser(null);
     } else {
       setUser(storedUser);
