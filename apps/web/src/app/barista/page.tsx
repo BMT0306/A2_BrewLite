@@ -148,7 +148,7 @@ function BaristaContent() {
     try {
       if (!silent) setOrdersLoading(true);
       setOrdersError(null);
-      const data = await apiFetch<Order[]>('/orders', {
+      const data = await apiFetch<Order[]>('/orders?all=true', {
         headers: getAuthHeaders(),
       });
       setOrders(data);
@@ -1206,7 +1206,6 @@ function BaristaContent() {
                         }`}
                         title="Bổ sung đúng 1 ly để test kịch bản 2 điện thoại cùng đặt món (Race Condition)"
                       >
-                        <Plus className="w-3.5 h-3.5" />
                         <span>{restockingId === p.id ? '...' : '+1 ly'}</span>
                       </button>
                       <button
@@ -1215,7 +1214,6 @@ function BaristaContent() {
                         className="bg-[#7e4d26] hover:bg-[#5a371b] text-white font-bold text-xs px-3 py-1.5 rounded-xl transition flex items-center gap-1 shadow-sm cursor-pointer"
                         title="Nạp nhanh 20 ly tồn kho"
                       >
-                        <Plus className="w-3.5 h-3.5" />
                         <span>{restockingId === p.id ? '...' : '+20 ly'}</span>
                       </button>
                     </div>

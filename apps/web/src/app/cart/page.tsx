@@ -25,7 +25,7 @@ import {
   QrCode,
   AlertCircle,
 } from 'lucide-react';
-import { apiFetch, getStoredToken } from '../../lib/api';
+import { apiFetch, getStoredToken, getStoredUser } from '../../lib/api';
 import { formatVND } from '../../lib/format';
 import { useCartStore, useCartHydrated, calcLineTotal } from '../../store/useCartStore';
 import { VietQRModal } from '../../components/VietQRModal';
@@ -75,9 +75,12 @@ export default function CartPage() {
   const fetchPendingOrder = async () => {
     if (!getStoredToken()) return;
     try {
+      const user = getStoredUser();
       const userOrders = await apiFetch<any[]>('/orders');
       if (Array.isArray(userOrders)) {
-        const active = userOrders.find((o) => o.status === 'PENDING');
+        const active = userOrders.find(
+          (o) => o.status === 'PENDING' && (!user?.id || !o.userId || o.userId === user.id),
+        );
         setPendingOrder(active || null);
       }
     } catch {

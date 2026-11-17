@@ -15,6 +15,7 @@ import {
   Param,
   Patch,
   Post,
+  Query,
   Req,
   UseGuards,
 } from '@nestjs/common';
@@ -46,8 +47,14 @@ export class OrdersController {
   }
 
   @Get()
-  async findAll(@Req() req: AuthenticatedRequest) {
-    return this.ordersService.findUserOrders(req.user.id, req.user.role);
+  async findAll(@Req() req: AuthenticatedRequest, @Query('all') all?: string) {
+    const viewAll =
+      (all === 'true' || all === '1') &&
+      (req.user.role === 'STAFF' || req.user.role === 'MANAGER');
+    return this.ordersService.findUserOrders(
+      req.user.id,
+      viewAll ? req.user.role : 'CUSTOMER',
+    );
   }
 
   @Get(':id')
@@ -64,7 +71,7 @@ export class OrdersController {
   }
 
   @Delete(':id')
-  async remove(@Param('id') id: string) {
-    return this.ordersService.remove(id);
+  async remove(@Req() req: AuthenticatedRequest, @Param('id') id: string) {
+    return this.ordersService.remove(id, req.user.id);
   }
 }

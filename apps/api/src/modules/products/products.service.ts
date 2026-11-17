@@ -470,7 +470,24 @@ export class ProductsService {
     return this.storageService.restockIngredient(ingredientId, amount);
   }
 
-  restockProduct(productId: string, amount: number) {
-    return this.storageService.restockProduct(productId, amount);
+  async restockProduct(productId: string, amount: number) {
+    const nextStock = this.storageService.restockProduct(productId, amount);
+    if (this.prisma.isConnected) {
+      try {
+        const prod = await this.prisma.product.findUnique({ where: { id: productId } });
+        if (prod) {
+          await this.prisma.product.update({
+            where: { id: productId },
+            data: {
+              stockQuantity: nextStock,
+              isAvailable: nextStock > 0,
+            },
+          });
+        }
+      } catch {
+        // Fallback nếu DB chưa có bản ghi sản phẩm
+      }
+    }
+    return nextStock;
   }
 }

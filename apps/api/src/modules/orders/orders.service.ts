@@ -8,6 +8,7 @@
 import {
   BadRequestException,
   ConflictException,
+  ForbiddenException,
   Injectable,
   NotFoundException,
 } from "@nestjs/common";
@@ -69,6 +70,10 @@ export class OrdersService {
                 (p) => p.id === item.productId,
               );
               if (fallback) {
+                const initStock = this.storageService.getProductStock(
+                  fallback.id,
+                  fallback.stockQuantity,
+                );
                 product = await tx.product.create({
                   data: {
                     id: fallback.id,
@@ -77,8 +82,8 @@ export class OrdersService {
                     category: fallback.category as any,
                     basePrice: fallback.basePrice,
                     imageUrl: fallback.imageUrl,
-                    stockQuantity: fallback.stockQuantity,
-                    isAvailable: fallback.isAvailable,
+                    stockQuantity: initStock,
+                    isAvailable: initStock > 0 && fallback.isAvailable,
                     sizeOptions: fallback.sizeOptions || [],
                     toppingOptions: fallback.toppingOptions || [],
                   } as any,
@@ -485,7 +490,7 @@ export class OrdersService {
    * Xóa đơn hàng nháp (PENDING) khi khách hàng bấm sửa món hoặc hủy thanh toán
    * Thực hiện Giao dịch bù trừ tự động hoàn trả số lượng tồn kho
    */
-  async remove(id: string) {
+  async remove(id: string, requesterUserId?: string) {
     if (this.prisma.isConnected) {
       try {
         const order = await this.prisma.order.findUnique({
@@ -494,6 +499,11 @@ export class OrdersService {
         });
 
         if (order) {
+          if (requesterUserId && order.userId && order.userId !== requesterUserId) {
+            throw new ForbiddenException(
+              "Bạn không có quyền xóa đơn hàng của người dùng khác.",
+            );
+          }
           if (order.status !== OrderStatus.PENDING) {
             throw new BadRequestException(
               "Chỉ có thể xóa bỏ đơn hàng đang ở trạng thái Chờ thanh toán (PENDING).",
@@ -532,7 +542,7 @@ export class OrdersService {
           });
         }
       } catch (err: any) {
-        if (err instanceof BadRequestException) throw err;
+        if (err instanceof BadRequestException || err instanceof ForbiddenException) throw err;
         // In-memory fallback khi DB offline
       }
     }
@@ -548,6 +558,11 @@ export class OrdersService {
     }
 
     const memOrder = this.inMemoryOrders[memIndex];
+    if (requesterUserId && memOrder.userId && memOrder.userId !== requesterUserId) {
+      throw new ForbiddenException(
+        "Bạn không có quyền xóa đơn hàng của người dùng khác.",
+      );
+    }
     if (memOrder.status !== OrderStatus.PENDING) {
       throw new BadRequestException(
         "Chỉ có thể xóa bỏ đơn hàng đang ở trạng thái Chờ thanh toán (PENDING).",

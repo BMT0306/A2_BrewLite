@@ -27,7 +27,7 @@ import {
   QrCode,
   Clock,
 } from 'lucide-react';
-import { apiFetch, getStoredToken } from '../../lib/api';
+import { apiFetch, getStoredToken, getStoredUser } from '../../lib/api';
 import { formatVND } from '../../lib/format';
 import { useCartStore, useCartHydrated, calcLineTotal } from '../../store/useCartStore';
 import { VietQRModal } from '../../components/VietQRModal';
@@ -61,11 +61,14 @@ export default function CheckoutPage() {
       return;
     }
 
-    // Tra cứu xem có đơn hàng nào đang PENDING của user không để khôi phục hoặc tránh clone đơn
+    const user = getStoredUser();
+    // Tra cứu xem có đơn hàng nào đang PENDING của chính user này không để khôi phục hoặc tránh clone đơn
     apiFetch<any[]>('/orders')
       .then((userOrders) => {
         if (Array.isArray(userOrders)) {
-          const activePending = userOrders.find((o) => o.status === 'PENDING');
+          const activePending = userOrders.find(
+            (o) => o.status === 'PENDING' && (!user?.id || !o.userId || o.userId === user.id),
+          );
           if (activePending) {
             setPendingOrder({
               orderId: activePending.id,
@@ -103,11 +106,14 @@ export default function CheckoutPage() {
     setError(null);
 
     try {
-      // Trước khi tạo đơn mới, xóa sạch các đơn PENDING cũ của tài khoản này để không clone đơn rác
+      // Trước khi tạo đơn mới, xóa sạch các đơn PENDING cũ của chính tài khoản này để không clone đơn rác
       try {
+        const user = getStoredUser();
         const existingOrders = await apiFetch<any[]>('/orders');
         if (Array.isArray(existingOrders)) {
-          const oldPendings = existingOrders.filter((o) => o.status === 'PENDING');
+          const oldPendings = existingOrders.filter(
+            (o) => o.status === 'PENDING' && (!user?.id || !o.userId || o.userId === user.id),
+          );
           for (const old of oldPendings) {
             await apiFetch(`/orders/${old.id}`, { method: 'DELETE' }).catch(() => {});
           }
