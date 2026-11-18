@@ -154,7 +154,10 @@ export class AuthService {
     // Fallback: Kiểm tra tài khoản mẫu hoặc tài khoản mới đăng ký từ bộ lưu trữ bền vững
     const memUser = this.storageService.getUserByEmail(email);
     if (memUser) {
-      const isMatch = (await bcrypt.compare(dto.password, memUser.passwordHash)) || (dto.password === '123456');
+      const isSeededDemo = ['customer@brewlite.vn', 'staff@brewlite.vn', 'manager@brewlite.vn'].includes(email);
+      const isMatch =
+        (await bcrypt.compare(dto.password, memUser.passwordHash)) ||
+        (isSeededDemo && dto.password === '123456');
       if (!isMatch) {
         throw new UnauthorizedException('Thông tin email hoặc mật khẩu không chính xác');
       }
@@ -173,6 +176,46 @@ export class AuthService {
     }
 
     throw new UnauthorizedException('Thông tin email hoặc mật khẩu không chính xác');
+  }
+
+  async getProfile(user: { id: string; email: string; fullName: string; role: string }) {
+    if (this.prisma.isConnected) {
+      try {
+        const dbUser = await this.prisma.user.findUnique({
+          where: { id: user.id },
+        });
+        if (dbUser) {
+          return {
+            id: dbUser.id,
+            email: dbUser.email,
+            fullName: dbUser.fullName,
+            role: dbUser.role,
+            loyaltyPoints: dbUser.loyaltyPoints,
+          };
+        }
+      } catch {
+        // Fallback
+      }
+    }
+
+    const memUser = this.storageService.getUserById(user.id);
+    if (memUser) {
+      return {
+        id: memUser.id,
+        email: memUser.email,
+        fullName: memUser.fullName,
+        role: memUser.role,
+        loyaltyPoints: memUser.loyaltyPoints || 0,
+      };
+    }
+
+    return {
+      id: user.id,
+      email: user.email,
+      fullName: user.fullName,
+      role: user.role,
+      loyaltyPoints: 0,
+    };
   }
 
   private generateToken(user: { id: string; email: string; role: string }) {

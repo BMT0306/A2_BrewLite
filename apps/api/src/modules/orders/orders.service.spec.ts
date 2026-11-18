@@ -9,7 +9,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { OrdersService } from './orders.service';
 import { PrismaService } from '../../prisma/prisma.service';
 import { StorageService } from '../../common/storage/storage.service';
-import { ConflictException, NotFoundException } from '@nestjs/common';
+import { ConflictException, ForbiddenException, NotFoundException } from '@nestjs/common';
 import { OrderStatus, Prisma } from '@prisma/client';
 
 describe('OrdersService (Unit Test: Atomic Transactions & Inventory)', () => {
@@ -20,6 +20,14 @@ describe('OrdersService (Unit Test: Atomic Transactions & Inventory)', () => {
     id: 'prod-001',
     name: 'Cà Phê Sữa Đá Sài Gòn',
     basePrice: 29000,
+    sizeOptions: [
+      { size: 'S', price: 0 },
+      { size: 'M', price: 6000 },
+      { size: 'L', price: 10000 },
+    ],
+    toppingOptions: [
+      { name: 'Trân châu đen', price: 5000 },
+    ],
     stockQuantity: 10,
     isAvailable: true,
   };
@@ -51,35 +59,48 @@ describe('OrdersService (Unit Test: Atomic Transactions & Inventory)', () => {
                   update: jest.fn().mockResolvedValue({ ...mockProductInStock, stockQuantity: 9 }),
                 },
                 order: {
-                  create: jest.fn().mockResolvedValue({
-                    id: 'order-uuid-mock-1234',
-                    orderCode: 'BL-TEST-1234',
-                    status: OrderStatus.PENDING,
-                    subtotalAmount: new Prisma.Decimal(35000),
-                    discountAmount: new Prisma.Decimal(0),
-                    totalAmount: new Prisma.Decimal(35000),
-                    items: [
-                      {
-                        id: 'item-1',
-                        productId: 'prod-001',
-                        quantity: 1,
-                        unitPrice: new Prisma.Decimal(35000),
-                        product: mockProductInStock,
-                      },
-                    ],
-                    createdAt: new Date(),
-                  }),
+                  create: jest.fn().mockImplementation(({ data }) =>
+                    Promise.resolve({
+                      id: 'order-uuid-mock-1234',
+                      orderCode: data.orderCode || 'BL-TEST-1234',
+                      userId: data.userId,
+                      status: OrderStatus.PENDING,
+                      subtotalAmount: data.subtotalAmount,
+                      discountAmount: data.discountAmount,
+                      totalAmount: data.totalAmount,
+                      items: [
+                        {
+                          id: 'item-1',
+                          productId: 'prod-001',
+                          quantity: 1,
+                          unitPrice: data.subtotalAmount,
+                          product: mockProductInStock,
+                        },
+                      ],
+                      createdAt: new Date(),
+                    }),
+                  ),
                 },
               };
               return callback(tx);
             }),
             order: {
               findMany: jest.fn().mockResolvedValue([]),
+              findFirst: jest.fn().mockResolvedValue({
+                id: 'order-uuid-mock-1234',
+                orderCode: 'BL-TEST-1234',
+                userId: 'usr-customer-B',
+                status: OrderStatus.PENDING,
+                items: [],
+                payments: [],
+              }),
               findUnique: jest.fn().mockResolvedValue({
                 id: 'order-uuid-mock-1234',
                 orderCode: 'BL-TEST-1234',
+                userId: 'usr-customer-B',
                 status: OrderStatus.PENDING,
                 items: [],
+                payments: [],
               }),
               update: jest.fn().mockImplementation(({ where, data }) => ({
                 id: where.id,
@@ -154,6 +175,51 @@ describe('OrdersService (Unit Test: Atomic Transactions & Inventory)', () => {
 
     expect(updated).toBeDefined();
     expect(updated.status).toBe(OrderStatus.COMPLETED);
+  });
+
+  it('SEC-ORD-01: should ignore client-tampered unitPrice and topping price and charge authoritative DB price', async () => {
+    const tamperedDto = {
+      items: [
+        {
+          productId: 'prod-001',
+          size: 'M', // +6000
+          toppings: [{ name: 'Trân châu đen', price: -999999 }], // DB price = +5000
+          quantity: 2,
+          unitPrice: 1, // Client hacked to 1 VND
+        },
+      ],
+    };
+
+    const order = await service.create('usr-customer-A', tamperedDto);
+    // Expected: (29000 + 6000 + 5000) * 2 = 80000
+    expect(Number(order.subtotalAmount)).toBe(80000);
+    expect(Number(order.totalAmount)).toBe(80000);
+  });
+
+  it('SEC-ORD-02: should block IDOR when User A tries to read User B order via findOne', async () => {
+    await expect(
+      service.findOne('order-uuid-mock-1234', { id: 'usr-customer-A', role: 'CUSTOMER' }),
+    ).rejects.toThrow(ForbiddenException);
+  });
+
+  it('SEC-ORD-03: should block IDOR when User A tries to cancel User B order via updateStatus', async () => {
+    await expect(
+      service.updateStatus(
+        'order-uuid-mock-1234',
+        { status: OrderStatus.CANCELLED },
+        { id: 'usr-customer-A', role: 'CUSTOMER' },
+      ),
+    ).rejects.toThrow(ForbiddenException);
+  });
+
+  it('SEC-ORD-04: should block RBAC escalation when Customer tries to mark own order COMPLETED', async () => {
+    await expect(
+      service.updateStatus(
+        'order-uuid-mock-1234',
+        { status: OrderStatus.COMPLETED },
+        { id: 'usr-customer-B', role: 'CUSTOMER' },
+      ),
+    ).rejects.toThrow(ForbiddenException);
   });
 });
 

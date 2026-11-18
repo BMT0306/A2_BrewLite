@@ -5,8 +5,11 @@
  * @project BrewLite - Assignment 2 (Software Engineering)
  */
 
-import { Controller, Get, Param, Patch, Post, Body, Query, HttpCode, HttpStatus } from '@nestjs/common';
+import { Controller, Get, Param, Patch, Post, Body, Query, HttpCode, HttpStatus, UseGuards } from '@nestjs/common';
 import { ProductsService } from './products.service';
+import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+import { RolesGuard } from '../auth/roles.guard';
+import { Roles } from '../auth/roles.decorator';
 
 @Controller('products')
 export class ProductsController {
@@ -26,11 +29,15 @@ export class ProductsController {
   }
 
   @Get('inventory/overview')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('STAFF', 'MANAGER')
   async getInventoryOverview() {
     return this.productsService.getInventoryOverview();
   }
 
   @Post('inventory/restock')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('STAFF', 'MANAGER')
   @HttpCode(HttpStatus.OK)
   async restock(
     @Body('ingredientId') ingredientId?: string,
@@ -53,6 +60,8 @@ export class ProductsController {
   }
 
   @Patch(':id/availability')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('STAFF', 'MANAGER')
   @HttpCode(HttpStatus.OK)
   async updateAvailability(
     @Param('id') id: string,
@@ -62,6 +71,8 @@ export class ProductsController {
   }
 
   @Patch(':id/stock')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('STAFF', 'MANAGER')
   @HttpCode(HttpStatus.OK)
   async updateStock(
     @Param('id') id: string,

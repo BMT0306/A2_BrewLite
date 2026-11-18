@@ -52,6 +52,8 @@ export const DEFAULT_INGREDIENTS: StoredIngredient[] = [
   { id: 'ING-DUONG-MIA', name: 'Nước đường mía hữu cơ', unit: 'ml', stock: 5000, minThreshold: 500, category: 'Đường' },
   { id: 'ING-DA-BI', name: 'Đá bi tinh khiết', unit: 'g', stock: 20000, minThreshold: 2000, category: 'Đá' },
   { id: 'ING-TRAN-CHAU', name: 'Trân châu đen hoàng kim', unit: 'g', stock: 3000, minThreshold: 300, category: 'Topping' },
+  { id: 'ING-HAT-SEN', name: 'Hạt sen Huế hầm đường phèn', unit: 'hạt', stock: 100, minThreshold: 10, category: 'Topping' },
+  { id: 'ING-LONG-NHAN', name: 'Long nhãn Hưng Yên ngâm ngọt', unit: 'quả', stock: 100, minThreshold: 10, category: 'Trái cây' },
 ];
 
 export const DEFAULT_PRODUCT_STOCKS: Record<string, number> = {
@@ -60,7 +62,7 @@ export const DEFAULT_PRODUCT_STOCKS: Record<string, number> = {
   'prod-003-tra-dao-cam-sa': 25,
   'prod-004-tra-sua-oolong': 40,
   'prod-005-matcha-da-xay': 20,
-  'prod-006-tra-sen-vang': 0,
+  'prod-006-tra-sen-vang': 2,
   'prod-007-cf-den-da': 50,
   'prod-008-cf-muoi-hue': 35,
   'prod-009-tra-dau-tay-oi-hong': 30,
@@ -104,6 +106,8 @@ export const PRODUCT_RECIPE_BOM: Record<string, { ingredientId: string; amount: 
   ],
   'prod-006-tra-sen-vang': [
     { ingredientId: 'ING-TRA-OOLONG', amount: 100, unit: 'ml' },
+    { ingredientId: 'ING-HAT-SEN', amount: 4, unit: 'hạt' },
+    { ingredientId: 'ING-LONG-NHAN', amount: 2, unit: 'quả' },
     { ingredientId: 'ING-DA-BI', amount: 150, unit: 'g' },
   ],
   'prod-007-cf-den-da': [
@@ -508,12 +512,14 @@ export class StorageService implements OnModuleInit {
 
   restockProduct(productId: string, amount: number) {
     const current = this.getProductStock(productId);
-    const next = current + amount;
+    const next = Math.max(0, current + amount);
     this.setProductStock(productId, next);
     const logEntry: StockLog = {
       id: `log-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
-      action: 'RESTOCK',
-      description: `Bổ sung số lượng món ${productId}: +${amount} ly (Tồn mới: ${next} ly)`,
+      action: amount >= 0 ? 'RESTOCK' : 'DEDUCT',
+      description: amount >= 0
+        ? `Bổ sung số lượng món ${productId}: +${amount} ly (Tồn mới: ${next} ly)`
+        : `Điều chỉnh giảm số lượng món ${productId}: ${amount} ly (Tồn mới: ${next} ly)`,
       createdAt: new Date().toISOString(),
     };
     if (!this.data.stockLogs) this.data.stockLogs = [];

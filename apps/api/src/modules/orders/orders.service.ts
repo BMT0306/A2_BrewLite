@@ -8,6 +8,7 @@
 import {
   BadRequestException,
   ConflictException,
+  ForbiddenException,
   Injectable,
   NotFoundException,
 } from "@nestjs/common";
@@ -50,14 +51,116 @@ export class OrdersService {
     }));
   }
 
+  /**
+   * Tính toán đơn giá chuẩn xác hoàn toàn trên phía Server từ dữ liệu DB/Catalog
+   * Tuyệt đối KHÔNG tin tưởng unitPrice hoặc giá topping do Client gửi lên (Chống Price Tampering)
+   */
+  private calculateAuthoritativeItemPricing(
+    product: any,
+    size?: string,
+    toppings?: any[],
+  ): { unitPrice: number; selectedToppings: { name: string; price: number }[] } {
+    const basePrice = Number(product.basePrice || 0);
+    const sizeOptions = Array.isArray(product.sizeOptions) ? product.sizeOptions : [];
+    const matchedSize = sizeOptions.find(
+      (s: any) => String(s?.size || "").trim().toLowerCase() === String(size || "").trim().toLowerCase(),
+    );
+    const sizePrice = matchedSize ? Number(matchedSize.price || 0) : 0;
+
+    const toppingOptions = Array.isArray(product.toppingOptions) ? product.toppingOptions : [];
+    const selectedToppings: { name: string; price: number }[] = [];
+    let toppingsTotal = 0;
+
+    if (Array.isArray(toppings)) {
+      for (const rawTopping of toppings) {
+        const toppingName =
+          typeof rawTopping === "string"
+            ? rawTopping.trim()
+            : String(rawTopping?.name || "").trim();
+        if (!toppingName) continue;
+
+        const matchedTopping = toppingOptions.find(
+          (t: any) => String(t?.name || "").trim().toLowerCase() === toppingName.toLowerCase(),
+        );
+        if (matchedTopping) {
+          const authoritativePrice = Number(matchedTopping.price || 0);
+          toppingsTotal += authoritativePrice;
+          selectedToppings.push({
+            name: matchedTopping.name,
+            price: authoritativePrice,
+          });
+        }
+      }
+    }
+
+    return {
+      unitPrice: Math.max(0, basePrice + sizePrice + toppingsTotal),
+      selectedToppings,
+    };
+  }
+
+  private assertCanViewOrder(order: any, requester?: { id: string; role: string }) {
+    if (!requester) return;
+    const isStaff = requester.role === "STAFF" || requester.role === "MANAGER";
+    if (!isStaff && order.userId && order.userId !== requester.id) {
+      throw new ForbiddenException(
+        "Bạn không có quyền xem thông tin đơn hàng của tài khoản khác.",
+      );
+    }
+  }
+
+  private assertCanUpdateStatus(
+    order: any,
+    nextStatus: OrderStatus,
+    requester?: { id: string; role: string },
+  ) {
+    if (!requester) return;
+    const isStaff = requester.role === "STAFF" || requester.role === "MANAGER";
+    if (isStaff) return;
+
+    if (order.userId && order.userId !== requester.id) {
+      throw new ForbiddenException(
+        "Bạn không có quyền thay đổi trạng thái đơn hàng của tài khoản khác.",
+      );
+    }
+    if (nextStatus !== OrderStatus.CANCELLED) {
+      throw new ForbiddenException(
+        "Khách hàng không có quyền chuyển trạng thái pha chế. Chỉ tài khoản Nhân viên / Quản lý mới được phép.",
+      );
+    }
+    if (
+      order.status !== OrderStatus.PENDING &&
+      order.status !== OrderStatus.CONFIRMED &&
+      order.status !== OrderStatus.CANCELLED
+    ) {
+      throw new BadRequestException(
+        "Không thể hủy đơn hàng đang được pha chế hoặc đã hoàn tất.",
+      );
+    }
+  }
+
   async create(userId: string, dto: CreateOrderDto) {
+    for (const item of dto.items) {
+      if (!Number.isInteger(item.quantity) || item.quantity < 1) {
+        throw new BadRequestException("Số lượng sản phẩm phải là số nguyên dương lớn hơn hoặc bằng 1.");
+      }
+    }
+
     if (this.prisma.isConnected) {
       try {
         // Thực thi tạo đơn hàng nguyên tử bên trong Prisma Interactive Transaction
         return await this.prisma.$transaction(async (tx) => {
           let subtotal = new Prisma.Decimal(0);
+          const verifiedItems: {
+            productId: string;
+            size: string;
+            selectedToppings: { name: string; price: number }[];
+            quantity: number;
+            unitPrice: Prisma.Decimal;
+            lineTotal: Prisma.Decimal;
+          }[] = [];
 
-          // 1. Kiểm tra tồn kho và trừ kho nguyên tử
+          // 1. Kiểm tra tồn kho, định giá chuẩn từ DB và trừ kho nguyên tử
           for (const item of dto.items) {
             let product = await tx.product.findUnique({
               where: { id: item.productId },
@@ -69,6 +172,10 @@ export class OrdersService {
                 (p) => p.id === item.productId,
               );
               if (fallback) {
+                const initStock = this.storageService.getProductStock(
+                  fallback.id,
+                  fallback.stockQuantity,
+                );
                 product = await tx.product.create({
                   data: {
                     id: fallback.id,
@@ -77,8 +184,8 @@ export class OrdersService {
                     category: fallback.category as any,
                     basePrice: fallback.basePrice,
                     imageUrl: fallback.imageUrl,
-                    stockQuantity: fallback.stockQuantity,
-                    isAvailable: fallback.isAvailable,
+                    stockQuantity: initStock,
+                    isAvailable: initStock > 0 && fallback.isAvailable,
                     sizeOptions: fallback.sizeOptions || [],
                     toppingOptions: fallback.toppingOptions || [],
                   } as any,
@@ -104,10 +211,24 @@ export class OrdersService {
               },
             });
 
-            const lineTotal = new Prisma.Decimal(item.unitPrice).mul(
-              item.quantity,
+            // Tính toán đơn giá chuẩn xác từ bảng Product (chống giả mạo giá từ Client)
+            const pricing = this.calculateAuthoritativeItemPricing(
+              product,
+              item.size,
+              item.toppings,
             );
+            const verifiedUnitPrice = new Prisma.Decimal(pricing.unitPrice);
+            const lineTotal = verifiedUnitPrice.mul(item.quantity);
             subtotal = subtotal.add(lineTotal);
+
+            verifiedItems.push({
+              productId: item.productId,
+              size: item.size,
+              selectedToppings: pricing.selectedToppings,
+              quantity: item.quantity,
+              unitPrice: verifiedUnitPrice,
+              lineTotal,
+            });
           }
 
           // Đảm bảo User tồn tại trong DB trước khi tạo Order (Foreign Key constraint)
@@ -175,15 +296,13 @@ export class OrdersService {
               totalAmount,
               note: dto.note || null,
               items: {
-                create: dto.items.map((item) => ({
+                create: verifiedItems.map((item) => ({
                   productId: item.productId,
                   size: item.size,
-                  selectedToppings: item.toppings || [],
+                  selectedToppings: item.selectedToppings,
                   quantity: item.quantity,
-                  unitPrice: new Prisma.Decimal(item.unitPrice),
-                  lineTotal: new Prisma.Decimal(item.unitPrice).mul(
-                    item.quantity,
-                  ),
+                  unitPrice: item.unitPrice,
+                  lineTotal: item.lineTotal,
                 })),
               },
             },
@@ -214,7 +333,8 @@ export class OrdersService {
       } catch (err: any) {
         if (
           err instanceof NotFoundException ||
-          err instanceof ConflictException
+          err instanceof ConflictException ||
+          err instanceof BadRequestException
         ) {
           throw err;
         }
@@ -224,13 +344,10 @@ export class OrdersService {
     // Khi PostgreSQL offline, xử lý dự phòng trên bộ nhớ (In-memory fallback)
     let subtotal = 0;
     const orderItems = dto.items.map((item) => {
-      const prod = FALLBACK_PRODUCTS.find((p) => p.id === item.productId) || {
-        id: item.productId,
-        name: "Đồ uống BrewLite",
-        basePrice: item.unitPrice,
-        stockQuantity: 10,
-        isAvailable: true,
-      };
+      const prod = FALLBACK_PRODUCTS.find((p) => p.id === item.productId);
+      if (!prod) {
+        throw new NotFoundException(`Không tìm thấy sản phẩm ${item.productId}`);
+      }
 
       // Kiểm tra tồn kho thời gian thực từ StorageService
       const currentStock = this.storageService.getProductStock(
@@ -243,15 +360,20 @@ export class OrdersService {
         );
       }
 
-      const lineTotal = Number(item.unitPrice) * item.quantity;
+      const pricing = this.calculateAuthoritativeItemPricing(
+        prod,
+        item.size,
+        item.toppings,
+      );
+      const lineTotal = pricing.unitPrice * item.quantity;
       subtotal += lineTotal;
       return {
         id: `item-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
         productId: item.productId,
         size: item.size,
-        selectedToppings: item.toppings || [],
+        selectedToppings: pricing.selectedToppings,
         quantity: item.quantity,
-        unitPrice: Number(item.unitPrice),
+        unitPrice: pricing.unitPrice,
         lineTotal,
         product: {
           ...prod,
@@ -337,7 +459,7 @@ export class OrdersService {
     return this.enrichOrdersWithRecipe(all);
   }
 
-  async findOne(id: string) {
+  async findOne(id: string, requester?: { id: string; role: string }) {
     if (this.prisma.isConnected) {
       try {
         const order = await this.prisma.order.findFirst({
@@ -354,8 +476,14 @@ export class OrdersService {
             },
           },
         });
-        if (order) return this.enrichOrdersWithRecipe([order])[0];
-      } catch {
+        if (order) {
+          this.assertCanViewOrder(order, requester);
+          return this.enrichOrdersWithRecipe([order])[0];
+        }
+      } catch (err: any) {
+        if (err instanceof ForbiddenException || err instanceof NotFoundException) {
+          throw err;
+        }
         // In-memory fallback
       }
     }
@@ -366,10 +494,15 @@ export class OrdersService {
     if (!memoryOrder) {
       throw new NotFoundException(`Không tìm thấy đơn hàng với mã ID ${id}`);
     }
+    this.assertCanViewOrder(memoryOrder, requester);
     return this.enrichOrdersWithRecipe([memoryOrder])[0];
   }
 
-  async updateStatus(id: string, dto: UpdateOrderStatusDto) {
+  async updateStatus(
+    id: string,
+    dto: UpdateOrderStatusDto,
+    requester?: { id: string; role: string },
+  ) {
     if (this.prisma.isConnected) {
       try {
         const order = await this.prisma.order.findUnique({
@@ -378,8 +511,12 @@ export class OrdersService {
         });
 
         if (order) {
+          this.assertCanUpdateStatus(order, dto.status, requester);
           // Xử lý Giao dịch bù trừ (Compensating Transaction) khi Hủy đơn hàng (Order Cancellation & Refund)
           if (dto.status === OrderStatus.CANCELLED) {
+            if (order.status === OrderStatus.CANCELLED) {
+              return order;
+            }
             return await this.prisma.$transaction(async (tx) => {
               // 1. Tự động hoàn lại số lượng tồn kho cho tất cả món trong đơn
               for (const item of order.items) {
@@ -387,6 +524,7 @@ export class OrdersService {
                   where: { id: item.productId },
                   data: {
                     stockQuantity: { increment: item.quantity },
+                    isAvailable: true,
                   },
                 });
               }
@@ -435,7 +573,14 @@ export class OrdersService {
             },
           });
         }
-      } catch {
+      } catch (err: any) {
+        if (
+          err instanceof ForbiddenException ||
+          err instanceof BadRequestException ||
+          err instanceof NotFoundException
+        ) {
+          throw err;
+        }
         // In-memory fallback khi DB offline
       }
     }
@@ -443,6 +588,10 @@ export class OrdersService {
     const memoryOrder = this.inMemoryOrders.find((o) => o.id === id);
     if (!memoryOrder) {
       throw new NotFoundException(`Không tìm thấy đơn hàng với mã ID ${id}`);
+    }
+    this.assertCanUpdateStatus(memoryOrder, dto.status, requester);
+    if (dto.status === OrderStatus.CANCELLED && memoryOrder.status === OrderStatus.CANCELLED) {
+      return memoryOrder;
     }
     memoryOrder.status = dto.status;
     if (dto.status === OrderStatus.CANCELLED) {
@@ -485,7 +634,7 @@ export class OrdersService {
    * Xóa đơn hàng nháp (PENDING) khi khách hàng bấm sửa món hoặc hủy thanh toán
    * Thực hiện Giao dịch bù trừ tự động hoàn trả số lượng tồn kho
    */
-  async remove(id: string) {
+  async remove(id: string, requesterUserId?: string) {
     if (this.prisma.isConnected) {
       try {
         const order = await this.prisma.order.findUnique({
@@ -494,6 +643,11 @@ export class OrdersService {
         });
 
         if (order) {
+          if (requesterUserId && order.userId && order.userId !== requesterUserId) {
+            throw new ForbiddenException(
+              "Bạn không có quyền xóa đơn hàng của người dùng khác.",
+            );
+          }
           if (order.status !== OrderStatus.PENDING) {
             throw new BadRequestException(
               "Chỉ có thể xóa bỏ đơn hàng đang ở trạng thái Chờ thanh toán (PENDING).",
@@ -532,7 +686,7 @@ export class OrdersService {
           });
         }
       } catch (err: any) {
-        if (err instanceof BadRequestException) throw err;
+        if (err instanceof BadRequestException || err instanceof ForbiddenException) throw err;
         // In-memory fallback khi DB offline
       }
     }
@@ -548,6 +702,11 @@ export class OrdersService {
     }
 
     const memOrder = this.inMemoryOrders[memIndex];
+    if (requesterUserId && memOrder.userId && memOrder.userId !== requesterUserId) {
+      throw new ForbiddenException(
+        "Bạn không có quyền xóa đơn hàng của người dùng khác.",
+      );
+    }
     if (memOrder.status !== OrderStatus.PENDING) {
       throw new BadRequestException(
         "Chỉ có thể xóa bỏ đơn hàng đang ở trạng thái Chờ thanh toán (PENDING).",
