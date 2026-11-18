@@ -10,7 +10,7 @@
 import React, { useState, useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { LogOut, Eye, EyeOff, CheckCircle2, AlertCircle, Coffee, ShieldCheck } from 'lucide-react';
-import { apiFetch, getStoredUser, setStoredToken, setStoredUser, removeStoredToken } from '../../lib/api';
+import { apiFetch, getStoredToken, getStoredUser, setStoredToken, setStoredUser, removeStoredToken } from '../../lib/api';
 
 function LoginForm() {
   const router = useRouter();
@@ -33,7 +33,25 @@ function LoginForm() {
   const [success, setSuccess] = useState<string | null>(null);
 
   useEffect(() => {
+    const token = getStoredToken();
+    if (!token) {
+      setCurrentUser(null);
+      return;
+    }
     setCurrentUser(getStoredUser());
+    apiFetch<any>('/auth/me')
+      .then((me) => {
+        if (me?.id) {
+          setCurrentUser(me);
+          setStoredUser(me);
+        }
+      })
+      .catch((err: any) => {
+        if (err?.status === 401) {
+          removeStoredToken();
+          setCurrentUser(null);
+        }
+      });
   }, []);
 
   const validateForm = (): boolean => {
@@ -98,7 +116,8 @@ function LoginForm() {
         setStoredUser(res.user);
         setCurrentUser(res.user);
         setSuccess('Đăng ký tài khoản thành công!');
-        setTimeout(() => router.push(redirectUrl), 1000);
+        const targetAfterRegister = redirectUrl.startsWith('/barista') ? '/' : redirectUrl;
+        setTimeout(() => router.push(targetAfterRegister), 1000);
       } else {
         const res = await apiFetch<any>('/auth/login', {
           method: 'POST',
@@ -108,7 +127,11 @@ function LoginForm() {
         setStoredUser(res.user);
         setCurrentUser(res.user);
         setSuccess('Đăng nhập thành công!');
-        setTimeout(() => router.push(redirectUrl), 1000);
+        const isStaffRole = res.user?.role === 'STAFF' || res.user?.role === 'MANAGER';
+        const targetUrl = isStaffRole
+          ? redirectUrl !== '/' ? redirectUrl : '/barista'
+          : redirectUrl.startsWith('/barista') ? '/' : redirectUrl;
+        setTimeout(() => router.push(targetUrl), 1000);
       }
     } catch (err: any) {
       setError(err.message || 'Xác thực không thành công. Vui lòng thử lại.');
@@ -149,9 +172,19 @@ function LoginForm() {
           </div>
         </div>
 
+        {(currentUser.role === 'STAFF' || currentUser.role === 'MANAGER') && (
+          <button
+            onClick={() => router.push('/barista')}
+            className="w-full bg-[#7e4d26] hover:bg-[#5a371b] text-white font-bold text-xs py-3.5 rounded-2xl shadow-md flex items-center justify-center space-x-2 transition cursor-pointer"
+          >
+            <ShieldCheck className="w-4 h-4" />
+            <span>Vào Quầy Barista & Quản Lý Kho</span>
+          </button>
+        )}
+
         <button
           onClick={handleLogout}
-          className="w-full bg-rose-50 hover:bg-rose-100 text-rose-700 font-bold text-xs py-3.5 rounded-2xl border border-rose-200 flex items-center justify-center space-x-2 transition"
+          className="w-full bg-rose-50 hover:bg-rose-100 text-rose-700 font-bold text-xs py-3.5 rounded-2xl border border-rose-200 flex items-center justify-center space-x-2 transition cursor-pointer"
         >
           <LogOut className="w-4 h-4" />
           <span>Đăng xuất tài khoản</span>

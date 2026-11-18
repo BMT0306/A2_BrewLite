@@ -58,16 +58,17 @@ export class OrdersController {
   }
 
   @Get(':id')
-  async findOne(@Param('id') id: string) {
-    return this.ordersService.findOne(id);
+  async findOne(@Req() req: AuthenticatedRequest, @Param('id') id: string) {
+    return this.ordersService.findOne(id, req.user);
   }
 
   @Patch(':id/status')
   async updateStatus(
+    @Req() req: AuthenticatedRequest,
     @Param('id') id: string,
     @Body() dto: UpdateOrderStatusDto,
   ) {
-    return this.ordersService.updateStatus(id, dto);
+    return this.ordersService.updateStatus(id, dto, req.user);
   }
 
   @Delete(':id')

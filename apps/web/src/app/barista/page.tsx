@@ -40,10 +40,8 @@ import {
   apiFetch,
   getStoredToken,
   getStoredUser,
-  getBaristaToken,
-  setBaristaToken,
-  getBaristaUser,
-  setBaristaUser,
+  setStoredUser,
+  removeStoredToken,
 } from '../../lib/api';
 
 interface OrderItem {
@@ -127,8 +125,9 @@ function BaristaContent() {
   const [inventoryLoading, setInventoryLoading] = useState(false);
   const [restockingId, setRestockingId] = useState<string | null>(null);
 
-  // Người dùng
+  // Người dùng (xác thực trực tiếp từ Backend /auth/me — tuyệt đối không tự động đăng nhập)
   const [currentUser, setCurrentUser] = useState<any>(null);
+  const [authChecked, setAuthChecked] = useState(false);
 
   // Kiểm tra URL query param (?tab=inventory hoặc ?tab=products)
   useEffect(() => {
@@ -139,7 +138,7 @@ function BaristaContent() {
   }, [searchParams]);
 
   const getAuthHeaders = () => {
-    const token = getBaristaToken() || (getStoredUser()?.role === 'STAFF' || getStoredUser()?.role === 'MANAGER' ? getStoredToken() : null);
+    const token = getStoredToken();
     return token ? { Authorization: `Bearer ${token}` } : {};
   };
 
@@ -183,66 +182,53 @@ function BaristaContent() {
 
   useEffect(() => {
     let isMounted = true;
+    let pollTimer: ReturnType<typeof setInterval> | null = null;
 
-    const initBarista = async () => {
-      let token = getBaristaToken();
-      let user = getBaristaUser();
-
-      const storedUser = getStoredUser();
-      if (!user && storedUser && (storedUser.role === 'STAFF' || storedUser.role === 'MANAGER')) {
-        token = getStoredToken();
-        user = storedUser;
+    const verifyBaristaAccess = async () => {
+      const token = getStoredToken();
+      if (!token) {
+        if (!isMounted) return;
+        setCurrentUser(null);
+        setAuthChecked(true);
+        setOrdersLoading(false);
+        return;
       }
 
-      // Khi truy cập /barista: Tự động kích hoạt đăng nhập nhân viên quầy vào sessionStorage (tuyệt đối không đè lên localStorage của khách hàng)
-      if (!token || !user || (user.role !== 'STAFF' && user.role !== 'MANAGER')) {
-        try {
-          const res = await apiFetch<any>('/auth/login', {
-            method: 'POST',
-            body: JSON.stringify({ email: 'staff@brewlite.vn', password: 'password123' }),
-          }).catch(async () => {
-            return await apiFetch<any>('/auth/login', {
-              method: 'POST',
-              body: JSON.stringify({ email: 'staff@brewlite.vn', password: '123456' }),
-            });
-          });
+      try {
+        const verifiedUser = await apiFetch<any>('/auth/me');
+        if (!isMounted) return;
+        setCurrentUser(verifiedUser);
+        setStoredUser(verifiedUser);
+        setAuthChecked(true);
 
-          if (res?.accessToken && res?.user) {
-            setBaristaToken(res.accessToken);
-            setBaristaUser(res.user);
-            token = res.accessToken;
-            user = res.user;
-          }
-        } catch (e) {
-          console.warn('Auto staff login for barista failed:', e);
+        if (verifiedUser?.role === 'STAFF' || verifiedUser?.role === 'MANAGER') {
+          fetchOrders();
+          fetchInventory();
+
+          // Chỉ bật đồng bộ thời gian thực khi đã xác thực đúng quyền STAFF / MANAGER
+          pollTimer = setInterval(() => {
+            fetchOrders(true);
+            fetchInventory(true);
+          }, 4000);
+        } else {
+          setOrdersLoading(false);
         }
-      }
-
-      if (!isMounted) return;
-      setCurrentUser(user);
-
-      if (user?.role === 'STAFF' || user?.role === 'MANAGER') {
-        fetchOrders();
-        fetchInventory();
-      } else {
+      } catch (err: any) {
+        if (!isMounted) return;
+        if (err?.status === 401) {
+          removeStoredToken();
+        }
+        setCurrentUser(null);
+        setAuthChecked(true);
         setOrdersLoading(false);
       }
     };
 
-    initBarista();
-
-    // Đồng bộ thời gian thực mỗi 4 giây
-    const timer = setInterval(() => {
-      const u = getBaristaUser() || getStoredUser();
-      if (u?.role === 'STAFF' || u?.role === 'MANAGER') {
-        fetchOrders(true);
-        fetchInventory(true);
-      }
-    }, 4000);
+    verifyBaristaAccess();
 
     return () => {
       isMounted = false;
-      clearInterval(timer);
+      if (pollTimer) clearInterval(pollTimer);
     };
   }, []);
 
@@ -368,42 +354,64 @@ function BaristaContent() {
     };
   }, [ingredients]);
 
-  // Kiểm tra quyền hạn truy cập (RBAC Gate)
-  if (!ordersLoading && currentUser && !isStaff) {
+  // Đang kiểm tra phiên đăng nhập với Backend (/auth/me)
+  if (!authChecked) {
+    return (
+      <div className="min-h-[75vh] flex flex-col items-center justify-center text-center p-6 bg-[#faf7f2] space-y-3">
+        <div className="w-10 h-10 border-4 border-[#7e4d26] border-t-transparent rounded-full animate-spin" />
+        <p className="text-sm font-bold text-stone-600">Đang xác thực quyền truy cập Quầy Barista...</p>
+      </div>
+    );
+  }
+
+  // Kiểm tra quyền hạn truy cập nghiêm ngặt (RBAC Gate): chặn cả khách chưa đăng nhập lẫn tài khoản CUSTOMER
+  if (!isStaff) {
     return (
       <div className="min-h-[75vh] flex flex-col items-center justify-center text-center p-6 bg-[#faf7f2] space-y-4">
-        <div className="w-18 h-18 rounded-3xl bg-amber-100 flex items-center justify-center text-amber-800 shadow-sm">
-          <ShieldAlert className="w-9 h-9 text-amber-800" />
+        <div className="w-18 h-18 rounded-3xl bg-rose-100 flex items-center justify-center text-rose-700 shadow-sm">
+          <ShieldAlert className="w-9 h-9 text-rose-700" />
         </div>
-        <h2 className="text-2xl font-black text-[#2c1810]">Khu Vực Giới Hạn Quầy Barista & Quản Lý Kho</h2>
+        <span className="text-xs font-black uppercase tracking-widest px-3 py-1 rounded-full bg-rose-100 text-rose-800 border border-rose-200">
+          403 • Truy cập bị từ chối
+        </span>
+        <h2 className="text-2xl font-black text-[#2c1810]">Khu Vực Dành Riêng Cho Nhân Viên & Quản Lý</h2>
         <p className="text-sm text-stone-600 max-w-md">
-          Bạn đang đăng nhập với vai trò <span className="font-bold text-[#7e4d26]">Khách Hàng ({currentUser.email})</span>.
-          Giao diện điều phối công thức, trừ kho nguyên liệu và xử lý đơn pha chế chỉ dành cho tài khoản nhân viên quầy (Staff / Manager).
+          {currentUser ? (
+            <>
+              Bạn đang đăng nhập bằng tài khoản{' '}
+              <span className="font-bold text-[#7e4d26]">
+                Khách Hàng ({currentUser.fullName || currentUser.email})
+              </span>
+              . Vui lòng đăng xuất và đăng nhập bằng tài khoản <span className="font-bold">Barista (STAFF)</span> hoặc{' '}
+              <span className="font-bold">Quản lý (MANAGER)</span> để truy cập màn hình điều phối đơn & kho nguyên liệu.
+            </>
+          ) : (
+            <>
+              Vui lòng đăng nhập bằng tài khoản <span className="font-bold">Nhân viên Barista (STAFF)</span> hoặc{' '}
+              <span className="font-bold">Quản lý (MANAGER)</span> để truy cập màn hình quản trị.
+            </>
+          )}
         </p>
-
-        <div className="bg-white p-4 rounded-2xl border border-stone-200 text-xs text-stone-700 max-w-md text-left space-y-1.5 shadow-xs">
-          <p className="font-extrabold text-[#2c1810] flex items-center gap-1.5">
-            <ChefHat className="w-4 h-4 text-amber-700" />
-            <span>Tài khoản nhân viên kiểm thử demo:</span>
-          </p>
-          <p>Email: <span className="font-mono text-amber-900 font-bold">staff@brewlite.vn</span></p>
-          <p>Mật khẩu: <span className="font-mono text-amber-900 font-bold">123456</span></p>
-        </div>
 
         <div className="flex flex-wrap justify-center gap-3 pt-2">
           <Link
-            href="/orders"
+            href="/"
             className="bg-white hover:bg-stone-100 text-stone-800 border border-stone-200 font-bold text-xs px-5 py-3 rounded-xl transition"
           >
-            Quay về Đơn Hàng Của Tôi
+            Quay về Thực Đơn
           </Link>
-          <Link
-            href="/login?redirect=/barista"
-            className="bg-[#7e4d26] hover:bg-[#5a371b] text-white font-bold text-xs px-5 py-3 rounded-xl transition shadow-md flex items-center gap-2"
+          <button
+            onClick={() => {
+              if (currentUser) {
+                removeStoredToken();
+              }
+              router.push('/login?redirect=/barista');
+            }}
+            className="bg-[#7e4d26] hover:bg-[#5a371b] text-white font-bold text-xs px-5 py-3 rounded-xl transition shadow-md flex items-center gap-2 cursor-pointer"
           >
             <ChefHat className="w-4 h-4" />
-            <span>Đăng Nhập Tài Khoản Staff</span>
-          </Link>
+            <span>{currentUser ? 'Đăng Xuất & Đăng Nhập Barista' : 'Đăng Nhập Tài Khoản Barista'}</span>
+          </button>
         </div>
       </div>
     );

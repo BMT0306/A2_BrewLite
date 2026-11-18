@@ -11,6 +11,9 @@ export function getStoredToken(): string | null {
 export function setStoredToken(token: string) {
   if (typeof window !== 'undefined') {
     localStorage.setItem('brewlite_jwt_token', token);
+    sessionStorage.removeItem('brewlite_barista_token');
+    sessionStorage.removeItem('brewlite_barista_user');
+    window.dispatchEvent(new Event('brewlite-auth-changed'));
   }
 }
 
@@ -18,18 +21,26 @@ export function removeStoredToken() {
   if (typeof window !== 'undefined') {
     localStorage.removeItem('brewlite_jwt_token');
     localStorage.removeItem('brewlite_user');
+    sessionStorage.removeItem('brewlite_barista_token');
+    sessionStorage.removeItem('brewlite_barista_user');
+    window.dispatchEvent(new Event('brewlite-auth-changed'));
   }
 }
 
 export function getStoredUser(): any | null {
   if (typeof window === 'undefined') return null;
   const user = localStorage.getItem('brewlite_user');
-  return user ? JSON.parse(user) : null;
+  try {
+    return user ? JSON.parse(user) : null;
+  } catch {
+    return null;
+  }
 }
 
 export function setStoredUser(user: any) {
   if (typeof window !== 'undefined') {
     localStorage.setItem('brewlite_user', JSON.stringify(user));
+    window.dispatchEvent(new Event('brewlite-auth-changed'));
   }
 }
 
