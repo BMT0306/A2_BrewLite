@@ -10,7 +10,7 @@ import { PaymentsService } from './payments.service';
 import { PrismaService } from '../../prisma/prisma.service';
 import { StorageService } from '../../common/storage/storage.service';
 import { PaymentMethod, PaymentStatus, OrderStatus } from '@prisma/client';
-import { BadRequestException } from '@nestjs/common';
+import { BadRequestException, ForbiddenException } from '@nestjs/common';
 
 describe('PaymentsService (Unit Test: Idempotency & Stock Logic)', () => {
   let service: PaymentsService;
@@ -127,5 +127,15 @@ describe('PaymentsService (Unit Test: Idempotency & Stock Logic)', () => {
     expect(res.isIdempotentReplay).toBe(false);
     expect(res.orderStatus).toBe(OrderStatus.CONFIRMED);
     expect(res.paymentStatus).toBe(PaymentStatus.PAID);
+  });
+
+  it('SEC-PAY-01: should block IDOR when User A attempts to pay/tamper User B order', async () => {
+    await expect(
+      service.processPayment(
+        'attacker-key-9999',
+        { orderId: 'order-uuid-1', method: PaymentMethod.WALLET, simulateFailure: true },
+        { id: 'user-attacker-A', role: 'CUSTOMER' },
+      ),
+    ).rejects.toThrow(ForbiddenException);
   });
 });

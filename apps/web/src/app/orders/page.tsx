@@ -150,14 +150,16 @@ export default function OrdersPage() {
     if (!confirm('Bạn có chắc chắn muốn hủy đơn hàng này và hoàn trả tồn kho?')) return;
     try {
       setUpdatingId(orderId);
-      await apiFetch(`/orders/${orderId}`, { method: 'DELETE' });
+      await apiFetch<any>(`/orders/${orderId}/status`, {
+        method: 'PATCH',
+        body: JSON.stringify({ status: 'CANCELLED' }),
+      });
       if (payingOrder?.id === orderId) {
         setPayingOrder(null);
       }
       await fetchOrders();
     } catch (err: any) {
-      // Fallback nếu method DELETE chưa hỗ trợ, cập nhật CANCELLED
-      await handleUpdateStatus(orderId, 'CANCELLED');
+      alert(err.message || 'Không thể hủy đơn hàng');
     } finally {
       setUpdatingId(null);
     }
@@ -354,15 +356,6 @@ export default function OrdersPage() {
             </p>
           </div>
           <div className="flex items-center gap-2 self-start sm:self-auto">
-            {isStaff && (
-              <Link
-                href="/barista"
-                className="bg-amber-600 hover:bg-amber-700 text-white px-3.5 py-2 rounded-xl shadow-xs transition flex items-center gap-1.5 text-xs font-bold"
-              >
-                <ChefHat className="w-4 h-4" />
-                <span>Sang Quầy Barista (KDS)</span>
-              </Link>
-            )}
             <button
               onClick={() => fetchOrders()}
               disabled={loading}
@@ -373,26 +366,6 @@ export default function OrdersPage() {
             </button>
           </div>
         </div>
-
-        {/* Staff Notice if logged in as staff */}
-        {isStaff && (
-          <div className="bg-amber-900 text-amber-100 rounded-2xl p-4 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-            <div className="flex items-center gap-2.5">
-              <span className="font-black bg-amber-600 text-white px-2 py-0.5 rounded-md text-xs uppercase tracking-wider shrink-0">
-                STAFF
-              </span>
-              <p className="text-xs leading-relaxed">
-                Bạn đang đăng nhập tài khoản nhân viên. Để xem chi tiết công thức chuẩn vị từng món và điều phối trạng thái pha chế, vui lòng truy cập Màn hình Quầy Barista (KDS).
-              </p>
-            </div>
-            <Link
-              href="/barista"
-              className="bg-white hover:bg-amber-50 text-[#7e4d26] font-bold text-xs px-3.5 py-2 rounded-xl shrink-0 transition"
-            >
-              Mở Quầy Barista →
-            </Link>
-          </div>
-        )}
 
         {/* Filter Tabs & Search */}
         <div className="flex flex-col sm:flex-row gap-3">

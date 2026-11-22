@@ -12,6 +12,7 @@ import {
   HttpCode,
   HttpStatus,
   Post,
+  Req,
   UseGuards,
 } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
@@ -26,10 +27,11 @@ export class PaymentsController {
   @UseGuards(JwtAuthGuard)
   @HttpCode(HttpStatus.OK)
   async processPayment(
+    @Req() req: any,
     @Headers('idempotency-key') idempotencyKey: string,
     @Body() dto: ProcessPaymentDto,
   ) {
-    return this.paymentsService.processPayment(idempotencyKey, dto);
+    return this.paymentsService.processPayment(idempotencyKey, dto, req.user);
   }
 
   /**

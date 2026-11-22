@@ -7,6 +7,7 @@
 
 import {
   BadRequestException,
+  ForbiddenException,
   HttpException,
   HttpStatus,
   Injectable,
@@ -36,6 +37,8 @@ export class PaymentsService implements OnModuleInit, OnModuleDestroy {
       console.log('[SePay Auto-Sync] Đã kích hoạt đối soát tự động qua SePay User API (Pull 2.5s)');
       await this.seedExistingSepayTransactions(token.trim());
       this.startSepayPolling(token.trim());
+    } else {
+      console.warn('[SePay Auto-Sync] Chưa cấu hình biến môi trường SEPAY_API_TOKEN (chỉ lắng nghe Webhook IPN).');
     }
   }
 
@@ -57,19 +60,41 @@ export class PaymentsService implements OnModuleInit, OnModuleDestroy {
           },
         },
       );
-      if (!res.ok) return;
+      if (!res.ok) {
+        console.warn(`[SePay Auto-Sync] seedExistingSepayTransactions trả về HTTP ${res.status}`);
+        return;
+      }
       const data: any = await res.json().catch(() => ({}));
       const transactions = data.transactions || [];
-      const orders = this.storageService.getOrders();
+
+      const pendingOrderCodes: string[] = [];
+      if (this.prisma.isConnected) {
+        try {
+          const dbPending = await this.prisma.order.findMany({
+            where: { status: OrderStatus.PENDING },
+            select: { orderCode: true },
+          });
+          for (const o of dbPending) {
+            if (o.orderCode) pendingOrderCodes.push(o.orderCode);
+          }
+        } catch {
+          // Fallback
+        }
+      }
+      for (const o of this.storageService.getOrders()) {
+        if (o.status === OrderStatus.PENDING && o.orderCode) {
+          pendingOrderCodes.push(o.orderCode);
+        }
+      }
+
       for (const txn of transactions) {
         const ref = String(txn.reference_number || txn.id);
         const txnId = String(txn.id);
         const content = String(txn.transaction_content || '').toUpperCase();
-        const hasMatchingPending = orders.some((o) => {
-          if (o.status !== OrderStatus.PENDING) return false;
-          const cleanCode = o.orderCode.replace(/[^A-Z0-9]/g, '');
-          const cleanContent = content.replace(/[^A-Z0-9]/g, '');
-          return cleanContent.includes(cleanCode);
+        const cleanContent = content.replace(/[^A-Z0-9]/g, '');
+        const hasMatchingPending = pendingOrderCodes.some((code) => {
+          const cleanCode = code.replace(/[^A-Z0-9]/g, '');
+          return cleanCode && cleanContent.includes(cleanCode);
         });
         if (!hasMatchingPending) {
           this.storageService.markSepayTxnProcessed(ref, txnId);
@@ -154,7 +179,21 @@ export class PaymentsService implements OnModuleInit, OnModuleDestroy {
     }
   }
 
-  async processPayment(idempotencyKey: string, dto: ProcessPaymentDto) {
+  private assertCanPayOrder(order: any, requester?: { id: string; role: string }) {
+    if (!requester) return;
+    const isStaff = requester.role === 'STAFF' || requester.role === 'MANAGER';
+    if (!isStaff && order?.userId && order.userId !== requester.id) {
+      throw new ForbiddenException(
+        'Bạn không có quyền thanh toán hoặc tác động lên đơn hàng của tài khoản khác.',
+      );
+    }
+  }
+
+  async processPayment(
+    idempotencyKey: string,
+    dto: ProcessPaymentDto,
+    requester?: { id: string; role: string },
+  ) {
     if (!idempotencyKey || idempotencyKey.trim() === '') {
       throw new BadRequestException('Bắt buộc cung cấp Header "Idempotency-Key" (UUIDv4) để đảm bảo an toàn giao dịch');
     }
@@ -163,8 +202,13 @@ export class PaymentsService implements OnModuleInit, OnModuleDestroy {
 
     // 1. Kiểm tra Idempotency trong bộ nhớ cache
     if (this.inMemoryPayments.has(cleanKey)) {
+      const cached = this.inMemoryPayments.get(cleanKey);
+      if (cached?._ownerUserId) {
+        this.assertCanPayOrder({ userId: cached._ownerUserId }, requester);
+      }
       console.log(`[PaymentsService] Idempotency-Key "${cleanKey}" already processed (cache). Returning cached result.`);
-      return this.inMemoryPayments.get(cleanKey);
+      const { _ownerUserId, ...safeCached } = cached;
+      return safeCached;
     }
 
     if (this.prisma.isConnected) {
@@ -176,6 +220,7 @@ export class PaymentsService implements OnModuleInit, OnModuleDestroy {
       });
 
       if (existingPayment) {
+        this.assertCanPayOrder(existingPayment.order, requester);
         console.log(`[PaymentsService] Idempotency-Key "${cleanKey}" already processed. Returning cached result.`);
         const replay = {
           paymentId: existingPayment.id,
@@ -186,7 +231,7 @@ export class PaymentsService implements OnModuleInit, OnModuleDestroy {
           paidAt: existingPayment.paidAt,
           isIdempotentReplay: true,
         };
-        this.inMemoryPayments.set(cleanKey, replay);
+        this.inMemoryPayments.set(cleanKey, { ...replay, _ownerUserId: existingPayment.order?.userId });
         return replay;
       }
 
@@ -199,6 +244,8 @@ export class PaymentsService implements OnModuleInit, OnModuleDestroy {
       if (!order) {
         throw new NotFoundException(`Không tìm thấy đơn hàng với mã ID ${dto.orderId}`);
       }
+
+      this.assertCanPayOrder(order, requester);
 
       if (order.status === OrderStatus.CONFIRMED || order.status === OrderStatus.COMPLETED) {
         throw new BadRequestException(`Đơn hàng #${order.orderCode || order.id} đã hoàn tất thanh toán trước đó.`);
@@ -306,7 +353,7 @@ export class PaymentsService implements OnModuleInit, OnModuleDestroy {
         paidAt: result.paidAt,
         isIdempotentReplay: false,
       };
-      this.inMemoryPayments.set(cleanKey, { ...response, isIdempotentReplay: true });
+      this.inMemoryPayments.set(cleanKey, { ...response, isIdempotentReplay: true, _ownerUserId: order.userId });
       return response;
       } catch (err: any) {
         if (err instanceof BadRequestException || err instanceof NotFoundException || err instanceof HttpException) {
@@ -322,6 +369,7 @@ export class PaymentsService implements OnModuleInit, OnModuleDestroy {
       if (!memOrder) {
         throw new NotFoundException(`Không tìm thấy đơn hàng với mã ID ${dto.orderId}`);
       }
+      this.assertCanPayOrder(memOrder, requester);
       if (memOrder.status === OrderStatus.CONFIRMED || memOrder.status === OrderStatus.COMPLETED) {
         throw new BadRequestException(`Đơn hàng #${memOrder.orderCode || memOrder.id} đã hoàn tất thanh toán trước đó.`);
       }

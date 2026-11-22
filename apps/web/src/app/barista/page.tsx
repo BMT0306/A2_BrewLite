@@ -36,7 +36,13 @@ import {
   Droplets,
   Boxes,
 } from 'lucide-react';
-import { apiFetch, getStoredToken, getStoredUser, setStoredToken, setStoredUser } from '../../lib/api';
+import {
+  apiFetch,
+  getStoredToken,
+  getStoredUser,
+  setStoredUser,
+  removeStoredToken,
+} from '../../lib/api';
 
 interface OrderItem {
   id: string;
@@ -119,8 +125,9 @@ function BaristaContent() {
   const [inventoryLoading, setInventoryLoading] = useState(false);
   const [restockingId, setRestockingId] = useState<string | null>(null);
 
-  // Người dùng
+  // Người dùng (xác thực trực tiếp từ Backend /auth/me — tuyệt đối không tự động đăng nhập)
   const [currentUser, setCurrentUser] = useState<any>(null);
+  const [authChecked, setAuthChecked] = useState(false);
 
   // Kiểm tra URL query param (?tab=inventory hoặc ?tab=products)
   useEffect(() => {
@@ -130,12 +137,19 @@ function BaristaContent() {
     else if (tabParam === 'kds') setMainTab('KDS');
   }, [searchParams]);
 
+  const getAuthHeaders = () => {
+    const token = getStoredToken();
+    return token ? { Authorization: `Bearer ${token}` } : {};
+  };
+
   // Tải danh sách đơn hàng cho quầy KDS
   const fetchOrders = async (silent = false) => {
     try {
       if (!silent) setOrdersLoading(true);
       setOrdersError(null);
-      const data = await apiFetch<Order[]>('/orders');
+      const data = await apiFetch<Order[]>('/orders?all=true', {
+        headers: getAuthHeaders(),
+      });
       setOrders(data);
     } catch (err: any) {
       if (!silent) {
@@ -150,7 +164,9 @@ function BaristaContent() {
   const fetchInventory = async (silent = false) => {
     try {
       if (!silent) setInventoryLoading(true);
-      const data = await apiFetch<any>('/products/inventory/overview');
+      const data = await apiFetch<any>('/products/inventory/overview', {
+        headers: getAuthHeaders(),
+      });
       if (data) {
         if (Array.isArray(data.ingredients)) setIngredients(data.ingredients);
         if (Array.isArray(data.stockLogs)) setStockLogs(data.stockLogs);
@@ -166,60 +182,53 @@ function BaristaContent() {
 
   useEffect(() => {
     let isMounted = true;
+    let pollTimer: ReturnType<typeof setInterval> | null = null;
 
-    const initBarista = async () => {
-      let token = getStoredToken();
-      let user = getStoredUser();
-
-      // Khi truy cập /barista: Tự động kích hoạt đăng nhập thẳng tài khoản nhân viên quầy (staff@brewlite.vn)
-      if (!token || !user || (user.role !== 'STAFF' && user.role !== 'MANAGER')) {
-        try {
-          const res = await apiFetch<any>('/auth/login', {
-            method: 'POST',
-            body: JSON.stringify({ email: 'staff@brewlite.vn', password: 'password123' }),
-          }).catch(async () => {
-            return await apiFetch<any>('/auth/login', {
-              method: 'POST',
-              body: JSON.stringify({ email: 'staff@brewlite.vn', password: '123456' }),
-            });
-          });
-
-          if (res?.accessToken && res?.user) {
-            setStoredToken(res.accessToken);
-            setStoredUser(res.user);
-            token = res.accessToken;
-            user = res.user;
-          }
-        } catch (e) {
-          console.warn('Auto staff login for barista failed:', e);
-        }
+    const verifyBaristaAccess = async () => {
+      const token = getStoredToken();
+      if (!token) {
+        if (!isMounted) return;
+        setCurrentUser(null);
+        setAuthChecked(true);
+        setOrdersLoading(false);
+        return;
       }
 
-      if (!isMounted) return;
-      setCurrentUser(user);
+      try {
+        const verifiedUser = await apiFetch<any>('/auth/me');
+        if (!isMounted) return;
+        setCurrentUser(verifiedUser);
+        setStoredUser(verifiedUser);
+        setAuthChecked(true);
 
-      if (user?.role === 'STAFF' || user?.role === 'MANAGER') {
-        fetchOrders();
-        fetchInventory();
-      } else {
+        if (verifiedUser?.role === 'STAFF' || verifiedUser?.role === 'MANAGER') {
+          fetchOrders();
+          fetchInventory();
+
+          // Chỉ bật đồng bộ thời gian thực khi đã xác thực đúng quyền STAFF / MANAGER
+          pollTimer = setInterval(() => {
+            fetchOrders(true);
+            fetchInventory(true);
+          }, 4000);
+        } else {
+          setOrdersLoading(false);
+        }
+      } catch (err: any) {
+        if (!isMounted) return;
+        if (err?.status === 401) {
+          removeStoredToken();
+        }
+        setCurrentUser(null);
+        setAuthChecked(true);
         setOrdersLoading(false);
       }
     };
 
-    initBarista();
-
-    // Đồng bộ thời gian thực mỗi 4 giây
-    const timer = setInterval(() => {
-      const u = getStoredUser();
-      if (u?.role === 'STAFF' || u?.role === 'MANAGER') {
-        fetchOrders(true);
-        fetchInventory(true);
-      }
-    }, 4000);
+    verifyBaristaAccess();
 
     return () => {
       isMounted = false;
-      clearInterval(timer);
+      if (pollTimer) clearInterval(pollTimer);
     };
   }, []);
 
@@ -229,6 +238,7 @@ function BaristaContent() {
       setUpdatingId(orderId);
       await apiFetch<any>(`/orders/${orderId}/status`, {
         method: 'PATCH',
+        headers: getAuthHeaders(),
         body: JSON.stringify({ status: nextStatus }),
       });
       await Promise.all([fetchOrders(true), fetchInventory(true)]);
@@ -245,6 +255,7 @@ function BaristaContent() {
       setRestockingId(ingredientId);
       await apiFetch<any>('/products/inventory/restock', {
         method: 'POST',
+        headers: getAuthHeaders(),
         body: JSON.stringify({ ingredientId, amount }),
       });
       await fetchInventory(true);
@@ -261,6 +272,7 @@ function BaristaContent() {
       setRestockingId(productId);
       await apiFetch<any>('/products/inventory/restock', {
         method: 'POST',
+        headers: getAuthHeaders(),
         body: JSON.stringify({ productId, amount }),
       });
       await fetchInventory(true);
@@ -342,42 +354,64 @@ function BaristaContent() {
     };
   }, [ingredients]);
 
-  // Kiểm tra quyền hạn truy cập (RBAC Gate)
-  if (!ordersLoading && currentUser && !isStaff) {
+  // Đang kiểm tra phiên đăng nhập với Backend (/auth/me)
+  if (!authChecked) {
+    return (
+      <div className="min-h-[75vh] flex flex-col items-center justify-center text-center p-6 bg-[#faf7f2] space-y-3">
+        <div className="w-10 h-10 border-4 border-[#7e4d26] border-t-transparent rounded-full animate-spin" />
+        <p className="text-sm font-bold text-stone-600">Đang xác thực quyền truy cập Quầy Barista...</p>
+      </div>
+    );
+  }
+
+  // Kiểm tra quyền hạn truy cập nghiêm ngặt (RBAC Gate): chặn cả khách chưa đăng nhập lẫn tài khoản CUSTOMER
+  if (!isStaff) {
     return (
       <div className="min-h-[75vh] flex flex-col items-center justify-center text-center p-6 bg-[#faf7f2] space-y-4">
-        <div className="w-18 h-18 rounded-3xl bg-amber-100 flex items-center justify-center text-amber-800 shadow-sm">
-          <ShieldAlert className="w-9 h-9 text-amber-800" />
+        <div className="w-18 h-18 rounded-3xl bg-rose-100 flex items-center justify-center text-rose-700 shadow-sm">
+          <ShieldAlert className="w-9 h-9 text-rose-700" />
         </div>
-        <h2 className="text-2xl font-black text-[#2c1810]">Khu Vực Giới Hạn Quầy Barista & Quản Lý Kho</h2>
+        <span className="text-xs font-black uppercase tracking-widest px-3 py-1 rounded-full bg-rose-100 text-rose-800 border border-rose-200">
+          403 • Truy cập bị từ chối
+        </span>
+        <h2 className="text-2xl font-black text-[#2c1810]">Khu Vực Dành Riêng Cho Nhân Viên & Quản Lý</h2>
         <p className="text-sm text-stone-600 max-w-md">
-          Bạn đang đăng nhập với vai trò <span className="font-bold text-[#7e4d26]">Khách Hàng ({currentUser.email})</span>.
-          Giao diện điều phối công thức, trừ kho nguyên liệu và xử lý đơn pha chế chỉ dành cho tài khoản nhân viên quầy (Staff / Manager).
+          {currentUser ? (
+            <>
+              Bạn đang đăng nhập bằng tài khoản{' '}
+              <span className="font-bold text-[#7e4d26]">
+                Khách Hàng ({currentUser.fullName || currentUser.email})
+              </span>
+              . Vui lòng đăng xuất và đăng nhập bằng tài khoản <span className="font-bold">Barista (STAFF)</span> hoặc{' '}
+              <span className="font-bold">Quản lý (MANAGER)</span> để truy cập màn hình điều phối đơn & kho nguyên liệu.
+            </>
+          ) : (
+            <>
+              Vui lòng đăng nhập bằng tài khoản <span className="font-bold">Nhân viên Barista (STAFF)</span> hoặc{' '}
+              <span className="font-bold">Quản lý (MANAGER)</span> để truy cập màn hình quản trị.
+            </>
+          )}
         </p>
-
-        <div className="bg-white p-4 rounded-2xl border border-stone-200 text-xs text-stone-700 max-w-md text-left space-y-1.5 shadow-xs">
-          <p className="font-extrabold text-[#2c1810] flex items-center gap-1.5">
-            <ChefHat className="w-4 h-4 text-amber-700" />
-            <span>Tài khoản nhân viên kiểm thử demo:</span>
-          </p>
-          <p>Email: <span className="font-mono text-amber-900 font-bold">staff@brewlite.vn</span></p>
-          <p>Mật khẩu: <span className="font-mono text-amber-900 font-bold">123456</span></p>
-        </div>
 
         <div className="flex flex-wrap justify-center gap-3 pt-2">
           <Link
-            href="/orders"
+            href="/"
             className="bg-white hover:bg-stone-100 text-stone-800 border border-stone-200 font-bold text-xs px-5 py-3 rounded-xl transition"
           >
-            Quay về Đơn Hàng Của Tôi
+            Quay về Thực Đơn
           </Link>
-          <Link
-            href="/login?redirect=/barista"
-            className="bg-[#7e4d26] hover:bg-[#5a371b] text-white font-bold text-xs px-5 py-3 rounded-xl transition shadow-md flex items-center gap-2"
+          <button
+            onClick={() => {
+              if (currentUser) {
+                removeStoredToken();
+              }
+              router.push('/login?redirect=/barista');
+            }}
+            className="bg-[#7e4d26] hover:bg-[#5a371b] text-white font-bold text-xs px-5 py-3 rounded-xl transition shadow-md flex items-center gap-2 cursor-pointer"
           >
             <ChefHat className="w-4 h-4" />
-            <span>Đăng Nhập Tài Khoản Staff</span>
-          </Link>
+            <span>{currentUser ? 'Đăng Xuất & Đăng Nhập Barista' : 'Đăng Nhập Tài Khoản Barista'}</span>
+          </button>
         </div>
       </div>
     );
@@ -1157,16 +1191,40 @@ function BaristaContent() {
                     <span className="text-xs font-bold text-stone-600">{formatCurrency(p.basePrice)}</span>
                   </div>
 
-                  <div className="pt-2 border-t border-stone-100 flex items-center justify-between">
-                    <span className="text-xs text-stone-400 font-mono">{p.id}</span>
-                    <button
-                      onClick={() => handleRestockProduct(p.id, 20)}
-                      disabled={restockingId === p.id}
-                      className="bg-[#7e4d26] hover:bg-[#5a371b] text-white font-bold text-xs px-3 py-1.5 rounded-xl transition flex items-center gap-1 shadow-sm cursor-pointer"
-                    >
-                      <Plus className="w-3.5 h-3.5" />
-                      <span>{restockingId === p.id ? '...' : '+20 ly'}</span>
-                    </button>
+                  <div className="pt-2 border-t border-stone-100 flex items-center justify-between gap-1 flex-wrap">
+                    <span className="text-xs text-stone-400 font-mono truncate max-w-[90px]">{p.id}</span>
+                    <div className="flex items-center gap-1">
+                      {p.stockQuantity > 0 && (
+                        <button
+                          onClick={() => handleRestockProduct(p.id, -1)}
+                          disabled={restockingId === p.id}
+                          className="bg-stone-100 hover:bg-stone-200 text-stone-600 font-bold text-xs px-2 py-1.5 rounded-xl transition border border-stone-300 shadow-xs cursor-pointer"
+                          title="Giảm 1 ly tồn kho để phục vụ kịch bản test"
+                        >
+                          -1 ly
+                        </button>
+                      )}
+                      <button
+                        onClick={() => handleRestockProduct(p.id, 1)}
+                        disabled={restockingId === p.id}
+                        className={`font-bold text-xs px-2.5 py-1.5 rounded-xl transition flex items-center gap-1 shadow-xs cursor-pointer ${
+                          p.id === 'prod-006-tra-sen-vang'
+                            ? 'bg-amber-600 hover:bg-amber-700 text-white ring-2 ring-amber-300 font-extrabold'
+                            : 'bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-300'
+                        }`}
+                        title="Bổ sung đúng 1 ly để test kịch bản 2 điện thoại cùng đặt món (Race Condition)"
+                      >
+                        <span>{restockingId === p.id ? '...' : '+1 ly'}</span>
+                      </button>
+                      <button
+                        onClick={() => handleRestockProduct(p.id, 20)}
+                        disabled={restockingId === p.id}
+                        className="bg-[#7e4d26] hover:bg-[#5a371b] text-white font-bold text-xs px-3 py-1.5 rounded-xl transition flex items-center gap-1 shadow-sm cursor-pointer"
+                        title="Nạp nhanh 20 ly tồn kho"
+                      >
+                        <span>{restockingId === p.id ? '...' : '+20 ly'}</span>
+                      </button>
+                    </div>
                   </div>
                 </div>
               ))}

@@ -122,13 +122,37 @@ export class AuthService {
 
   async login(dto: LoginDto) {
     const email = dto.email.toLowerCase().trim();
+    const isDemoAccount = ['customer@brewlite.vn', 'staff@brewlite.vn', 'manager@brewlite.vn'].includes(email);
+    const isDemoPassword = dto.password === '123456' || dto.password === 'password123';
+
     if (this.prisma.isConnected) {
       try {
-        const user = await this.prisma.user.findUnique({
+        let user = await this.prisma.user.findUnique({
           where: { email },
         });
+
+        // Nếu PostgreSQL vừa khởi tạo bằng db push chưa kịp seed tài khoản demo, tự tạo ngay
+        if (!user && isDemoAccount) {
+          const hash123456 = await bcrypt.hash('123456', 10);
+          const demoRole = email.includes('staff') ? 'STAFF' : email.includes('manager') ? 'MANAGER' : 'CUSTOMER';
+          const demoName = email.includes('staff') ? 'Trần Thị Thu Ngân' : email.includes('manager') ? 'Lê Hoàng Quản Lý' : 'Nguyễn Văn Khách';
+          const demoPhone = email.includes('staff') ? '0912345678' : email.includes('manager') ? '0923456789' : '0901234567';
+          user = await this.prisma.user.create({
+            data: {
+              email,
+              passwordHash: hash123456,
+              fullName: demoName,
+              role: demoRole as any,
+              phone: demoPhone,
+              loyaltyPoints: 100,
+            },
+          });
+        }
+
         if (user) {
-          const isMatch = await bcrypt.compare(dto.password, user.passwordHash);
+          const isMatch =
+            (await bcrypt.compare(dto.password, user.passwordHash)) ||
+            (isDemoAccount && isDemoPassword);
           if (!isMatch) {
             throw new UnauthorizedException('Thông tin email hoặc mật khẩu không chính xác');
           }
@@ -154,7 +178,9 @@ export class AuthService {
     // Fallback: Kiểm tra tài khoản mẫu hoặc tài khoản mới đăng ký từ bộ lưu trữ bền vững
     const memUser = this.storageService.getUserByEmail(email);
     if (memUser) {
-      const isMatch = (await bcrypt.compare(dto.password, memUser.passwordHash)) || (dto.password === '123456');
+      const isMatch =
+        (await bcrypt.compare(dto.password, memUser.passwordHash)) ||
+        (isDemoAccount && isDemoPassword);
       if (!isMatch) {
         throw new UnauthorizedException('Thông tin email hoặc mật khẩu không chính xác');
       }
@@ -172,7 +198,74 @@ export class AuthService {
       };
     }
 
+    // Nếu bộ lưu trữ chưa có nhưng đăng nhập bằng tài khoản demo chuẩn
+    if (isDemoAccount && isDemoPassword) {
+      const demoRole = email.includes('staff') ? 'STAFF' : email.includes('manager') ? 'MANAGER' : 'CUSTOMER';
+      const demoName = email.includes('staff') ? 'Trần Thị Thu Ngân' : email.includes('manager') ? 'Lê Hoàng Quản Lý' : 'Nguyễn Văn Khách';
+      const createdUser: StoredUser = {
+        id: `usr-${email.includes('staff') ? 'staff' : email.includes('manager') ? 'manager' : 'customer'}-001`,
+        email,
+        fullName: demoName,
+        role: demoRole as any,
+        loyaltyPoints: 100,
+        phone: email.includes('staff') ? '0912345678' : '0901234567',
+        passwordHash: await bcrypt.hash('123456', 10),
+      };
+      this.storageService.saveUser(createdUser);
+      const accessToken = this.generateToken(createdUser);
+      return {
+        accessToken,
+        user: {
+          id: createdUser.id,
+          email: createdUser.email,
+          fullName: createdUser.fullName,
+          role: createdUser.role,
+          loyaltyPoints: createdUser.loyaltyPoints,
+        },
+      };
+    }
+
     throw new UnauthorizedException('Thông tin email hoặc mật khẩu không chính xác');
+  }
+
+  async getProfile(user: { id: string; email: string; fullName: string; role: string }) {
+    if (this.prisma.isConnected) {
+      try {
+        const dbUser = await this.prisma.user.findUnique({
+          where: { id: user.id },
+        });
+        if (dbUser) {
+          return {
+            id: dbUser.id,
+            email: dbUser.email,
+            fullName: dbUser.fullName,
+            role: dbUser.role,
+            loyaltyPoints: dbUser.loyaltyPoints,
+          };
+        }
+      } catch {
+        // Fallback
+      }
+    }
+
+    const memUser = this.storageService.getUserById(user.id);
+    if (memUser) {
+      return {
+        id: memUser.id,
+        email: memUser.email,
+        fullName: memUser.fullName,
+        role: memUser.role,
+        loyaltyPoints: memUser.loyaltyPoints || 0,
+      };
+    }
+
+    return {
+      id: user.id,
+      email: user.email,
+      fullName: user.fullName,
+      role: user.role,
+      loyaltyPoints: 0,
+    };
   }
 
   private generateToken(user: { id: string; email: string; role: string }) {

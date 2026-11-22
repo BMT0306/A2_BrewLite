@@ -11,7 +11,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { Coffee, ShoppingBag, ClipboardList, User, ChefHat, Package } from 'lucide-react';
 import { useCartStore, useCartHydrated } from '../store/useCartStore';
-import { getStoredUser } from '../lib/api';
+import { apiFetch, getStoredToken, getStoredUser, removeStoredToken, setStoredUser } from '../lib/api';
 
 export default function Navbar() {
   const pathname = usePathname();
@@ -20,15 +20,59 @@ export default function Navbar() {
   const [user, setUser] = useState<any>(null);
 
   useEffect(() => {
-    const storedUser = getStoredUser();
-    // Khi ở các trang khách hàng (Menu, Giỏ hàng, Đơn hàng):
-    // Tuyệt đối không hiển thị tài khoản nhân viên quầy để giữ giao diện khách hàng an toàn & chuẩn mực
-    if (!pathname?.startsWith('/barista') && storedUser && (storedUser.role === 'STAFF' || storedUser.role === 'MANAGER')) {
-      setUser(null);
-    } else {
-      setUser(storedUser);
-    }
+    let active = true;
+
+    const syncAuth = async () => {
+      const token = getStoredToken();
+      if (!token) {
+        if (active) setUser(null);
+        return;
+      }
+
+      // Hiển thị nhanh cache hiện có trong khi xác thực lại bằng JWT thật ở Backend (/auth/me)
+      const cached = getStoredUser();
+      if (active && cached) setUser(cached);
+
+      try {
+        const verifiedUser = await apiFetch<any>('/auth/me');
+        if (!active) return;
+        if (verifiedUser && verifiedUser.id) {
+          setUser(verifiedUser);
+          // Chỉ ghi lại nếu dữ liệu thực tế từ token khác với localStorage (chống giả mạo role / đổi token thủ công)
+          if (
+            !cached ||
+            cached.id !== verifiedUser.id ||
+            cached.role !== verifiedUser.role ||
+            cached.fullName !== verifiedUser.fullName
+          ) {
+            localStorage.setItem('brewlite_user', JSON.stringify(verifiedUser));
+          }
+        }
+      } catch (err: any) {
+        if (!active) return;
+        if (err?.status === 401) {
+          removeStoredToken();
+          setUser(null);
+        }
+      }
+    };
+
+    syncAuth();
+
+    const handleAuthChange = () => {
+      syncAuth();
+    };
+    window.addEventListener('brewlite-auth-changed', handleAuthChange);
+    window.addEventListener('storage', handleAuthChange);
+
+    return () => {
+      active = false;
+      window.removeEventListener('brewlite-auth-changed', handleAuthChange);
+      window.removeEventListener('storage', handleAuthChange);
+    };
   }, [pathname]);
+
+  const isStaff = user && (user.role === 'STAFF' || user.role === 'MANAGER');
 
   return (
     <header className="sticky top-0 z-40 bg-[#1c120c] text-[#f7edde] border-b border-[#362217] shadow-lg backdrop-blur-md">
@@ -107,7 +151,7 @@ export default function Navbar() {
             <span>Đơn hàng</span>
           </Link>
 
-          {pathname?.startsWith('/barista') && user && (user.role === 'STAFF' || user.role === 'MANAGER') && (
+          {isStaff && (
             <>
               <Link
                 href="/barista"
@@ -141,12 +185,17 @@ export default function Navbar() {
           >
             <User className="w-4 h-4 text-amber-300" />
             <span>{user ? user.fullName || 'Tài khoản' : 'Đăng nhập'}</span>
+            {isStaff && (
+              <span className="text-[10px] font-black px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-300 border border-amber-400/30">
+                {user.role}
+              </span>
+            )}
           </Link>
         </nav>
 
         {/* Mobile Header Right */}
         <div className="flex md:hidden items-center gap-2">
-          {pathname?.startsWith('/barista') && user && (user.role === 'STAFF' || user.role === 'MANAGER') && (
+          {isStaff && (
             <Link
               href="/barista"
               className={`p-2 rounded-xl ${pathname === '/barista' ? 'bg-amber-600 text-white' : 'text-amber-400'}`}

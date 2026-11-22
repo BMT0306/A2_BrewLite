@@ -5,7 +5,8 @@
  * @project BrewLite - Assignment 2 (Software Engineering)
  */
 
-import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException, OnApplicationBootstrap } from '@nestjs/common';
+import * as bcrypt from 'bcrypt';
 import { PrismaService } from '../../prisma/prisma.service';
 import { StorageService, PRODUCT_RECIPE_BOM } from '../../common/storage/storage.service';
 
@@ -119,9 +120,9 @@ export const FALLBACK_PRODUCTS = [
   },
   {
     id: 'prod-006-tra-sen-vang',
-    name: 'Trà Sen Vàng Long Nhãn (TẠM HẾT HÀNG)',
+    name: 'Trà Sen Vàng Long Nhãn',
     description: 'Món đặc sản sen Huế thượng hạng thanh mát kết hợp long nhãn ngọt ngào thơm nức.',
-    recipe: '100ml Cốt trà Ô Long mộc, 25ml Nước vải tươi ngâm, 4 hạt Sen hầm đường phèn, 2 quả Vải thiều mọng nước.',
+    recipe: '100ml Cốt trà Ô Long mộc, 4 hạt Sen hầm đường phèn, 2 quả Long nhãn ngâm đường, 150g Đá bi tinh khiết.',
     category: 'Tea',
     basePrice: 45000,
     imageUrl: 'https://images.unsplash.com/photo-1576092768241-dec231879fc3?w=500&q=80',
@@ -134,8 +135,8 @@ export const FALLBACK_PRODUCTS = [
       { name: 'Hạt sen bùi', price: 10000 },
       { name: 'Củ năng ngâm', price: 8000 },
     ],
-    stockQuantity: 0,
-    isAvailable: false,
+    stockQuantity: 2,
+    isAvailable: true,
     createdAt: new Date('2026-01-01'),
   },
   {
@@ -263,11 +264,136 @@ export const FALLBACK_PRODUCTS = [
 ];
 
 @Injectable()
-export class ProductsService {
+export class ProductsService implements OnApplicationBootstrap {
   constructor(
     private readonly prisma: PrismaService,
     private readonly storageService: StorageService,
   ) {}
+
+  async onApplicationBootstrap() {
+    if (!this.prisma.isConnected || typeof (this.prisma as any).product?.create !== 'function') {
+      return;
+    }
+
+    try {
+      const existingProducts = await this.prisma.product.findMany({
+        select: { id: true, stockQuantity: true },
+      });
+      const existingMap = new Map(existingProducts.map((p) => [p.id, p.stockQuantity]));
+
+      let seededCount = 0;
+      for (const item of FALLBACK_PRODUCTS) {
+        if (!existingMap.has(item.id)) {
+          await this.prisma.product.create({
+            data: {
+              id: item.id,
+              name: item.name,
+              description: item.description,
+              category: item.category,
+              basePrice: item.basePrice,
+              imageUrl: item.imageUrl,
+              sizeOptions: item.sizeOptions || [],
+              toppingOptions: item.toppingOptions || [],
+              stockQuantity: item.stockQuantity,
+              isAvailable: item.stockQuantity > 0 && item.isAvailable,
+            } as any,
+          });
+          this.storageService.setProductStock(item.id, item.stockQuantity);
+          seededCount++;
+        } else {
+          // Đồng bộ tồn kho hiện tại từ PostgreSQL (nguồn chân lý) sang StorageService
+          const dbStock = existingMap.get(item.id);
+          if (typeof dbStock === 'number') {
+            this.storageService.setProductStock(item.id, dbStock);
+          }
+        }
+      }
+
+      if (seededCount > 0) {
+        console.log(`[ProductsService] Đã tự động khởi tạo ${seededCount} sản phẩm mặc định vào PostgreSQL.`);
+      }
+
+      if (typeof (this.prisma as any).promotion?.upsert === 'function') {
+        const defaultPromos = [
+          {
+            code: 'WELCOME10',
+            description: 'Giảm 10% tối đa 50.000đ cho thành viên mới',
+            discountPercent: 10,
+            maxDiscountAmount: 50000,
+          },
+          {
+            code: 'BREW10',
+            description: 'Giảm 10% tối đa 50.000đ cho đơn BrewLite',
+            discountPercent: 10,
+            maxDiscountAmount: 50000,
+          },
+          {
+            code: 'WELCOME20',
+            description: 'Giảm 20% tối đa 50.000đ cho khách hàng thân thiết',
+            discountPercent: 20,
+            maxDiscountAmount: 50000,
+          },
+        ];
+        for (const promo of defaultPromos) {
+          await this.prisma.promotion.upsert({
+            where: { code: promo.code },
+            update: {},
+            create: {
+              code: promo.code,
+              description: promo.description,
+              discountPercent: promo.discountPercent,
+              maxDiscountAmount: promo.maxDiscountAmount,
+              validFrom: new Date('2026-01-01'),
+              validUntil: new Date('2027-12-31'),
+              isActive: true,
+            },
+          });
+        }
+      }
+
+      // Khởi tạo sẵn 3 tài khoản demo vào PostgreSQL nếu chưa có
+      if (typeof (this.prisma as any).user?.upsert === 'function') {
+        const demoPassHash = await bcrypt.hash('123456', 10);
+        const demoUsers = [
+          {
+            email: 'customer@brewlite.vn',
+            fullName: 'Nguyễn Văn Khách',
+            role: 'CUSTOMER',
+            phone: '0901234567',
+          },
+          {
+            email: 'staff@brewlite.vn',
+            fullName: 'Trần Thị Thu Ngân',
+            role: 'STAFF',
+            phone: '0912345678',
+          },
+          {
+            email: 'manager@brewlite.vn',
+            fullName: 'Lê Hoàng Quản Lý',
+            role: 'MANAGER',
+            phone: '0923456789',
+          },
+        ];
+        for (const u of demoUsers) {
+          await this.prisma.user.upsert({
+            where: { email: u.email },
+            update: { passwordHash: demoPassHash, role: u.role as any },
+            create: {
+              email: u.email,
+              passwordHash: demoPassHash,
+              fullName: u.fullName,
+              role: u.role as any,
+              phone: u.phone,
+              loyaltyPoints: 100,
+            },
+          });
+        }
+        console.log('[ProductsService] Đã đồng bộ 3 tài khoản demo (customer, staff, manager) vào PostgreSQL.');
+      }
+    } catch (err: any) {
+      console.warn('[ProductsService] Bỏ qua auto-seed PostgreSQL:', err?.message || err);
+    }
+  }
 
   private filterFallback(items: typeof FALLBACK_PRODUCTS, category?: string, search?: string) {
     let result = [...items];
@@ -299,7 +425,7 @@ export class ProductsService {
 
         const products = await this.prisma.product.findMany({
           where,
-          orderBy: { createdAt: 'desc' },
+          orderBy: { id: 'asc' },
         });
 
         if (products && products.length > 0) {
@@ -470,7 +596,24 @@ export class ProductsService {
     return this.storageService.restockIngredient(ingredientId, amount);
   }
 
-  restockProduct(productId: string, amount: number) {
-    return this.storageService.restockProduct(productId, amount);
+  async restockProduct(productId: string, amount: number) {
+    const nextStock = this.storageService.restockProduct(productId, amount);
+    if (this.prisma.isConnected) {
+      try {
+        const prod = await this.prisma.product.findUnique({ where: { id: productId } });
+        if (prod) {
+          await this.prisma.product.update({
+            where: { id: productId },
+            data: {
+              stockQuantity: nextStock,
+              isAvailable: nextStock > 0,
+            },
+          });
+        }
+      } catch {
+        // Fallback nếu DB chưa có bản ghi sản phẩm
+      }
+    }
+    return nextStock;
   }
 }
