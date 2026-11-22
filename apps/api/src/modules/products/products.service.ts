@@ -6,6 +6,7 @@
  */
 
 import { Injectable, NotFoundException, BadRequestException, OnApplicationBootstrap } from '@nestjs/common';
+import * as bcrypt from 'bcrypt';
 import { PrismaService } from '../../prisma/prisma.service';
 import { StorageService, PRODUCT_RECIPE_BOM } from '../../common/storage/storage.service';
 
@@ -348,6 +349,46 @@ export class ProductsService implements OnApplicationBootstrap {
             },
           });
         }
+      }
+
+      // Khởi tạo sẵn 3 tài khoản demo vào PostgreSQL nếu chưa có
+      if (typeof (this.prisma as any).user?.upsert === 'function') {
+        const demoPassHash = await bcrypt.hash('123456', 10);
+        const demoUsers = [
+          {
+            email: 'customer@brewlite.vn',
+            fullName: 'Nguyễn Văn Khách',
+            role: 'CUSTOMER',
+            phone: '0901234567',
+          },
+          {
+            email: 'staff@brewlite.vn',
+            fullName: 'Trần Thị Thu Ngân',
+            role: 'STAFF',
+            phone: '0912345678',
+          },
+          {
+            email: 'manager@brewlite.vn',
+            fullName: 'Lê Hoàng Quản Lý',
+            role: 'MANAGER',
+            phone: '0923456789',
+          },
+        ];
+        for (const u of demoUsers) {
+          await this.prisma.user.upsert({
+            where: { email: u.email },
+            update: { passwordHash: demoPassHash, role: u.role as any },
+            create: {
+              email: u.email,
+              passwordHash: demoPassHash,
+              fullName: u.fullName,
+              role: u.role as any,
+              phone: u.phone,
+              loyaltyPoints: 100,
+            },
+          });
+        }
+        console.log('[ProductsService] Đã đồng bộ 3 tài khoản demo (customer, staff, manager) vào PostgreSQL.');
       }
     } catch (err: any) {
       console.warn('[ProductsService] Bỏ qua auto-seed PostgreSQL:', err?.message || err);

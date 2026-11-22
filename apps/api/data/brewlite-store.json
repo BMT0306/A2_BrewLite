@@ -7,7 +7,7 @@
       "role": "CUSTOMER",
       "loyaltyPoints": 141,
       "phone": "0901234567",
-      "passwordHash": "$2b$10$U7WZ67Oorw0UfnwmyOSOgeeZ2R8Gv9dQZR1qS8Xwt0KvK2pthoY/a"
+      "passwordHash": "$2b$10$fBuWJYGGeHOD/i9h9VX9ouMW0UgCAxFCWfyNv/i2fl4AHwFyo6Tk6"
     },
     {
       "id": "usr-staff-001",
@@ -16,7 +16,7 @@
       "role": "STAFF",
       "loyaltyPoints": 0,
       "phone": "0912345678",
-      "passwordHash": "$2b$10$7elSxYyGJjllJ.2MtaVTDejAcgP7aZx4sngcH4tR9x6vWCLKzlN/S"
+      "passwordHash": "$2b$10$fBuWJYGGeHOD/i9h9VX9ouMW0UgCAxFCWfyNv/i2fl4AHwFyo6Tk6"
     },
     {
       "id": "usr-manager-001",
@@ -25,7 +25,7 @@
       "role": "MANAGER",
       "loyaltyPoints": 0,
       "phone": "0923456789",
-      "passwordHash": "$2b$10$T4QEUnYFNSEhbMCrt1ZlBO1el/62jsyRvhw9LTpXlTP5NxG1Sun3S"
+      "passwordHash": "$2b$10$fBuWJYGGeHOD/i9h9VX9ouMW0UgCAxFCWfyNv/i2fl4AHwFyo6Tk6"
     },
     {
       "id": "usr-1794641180518",
