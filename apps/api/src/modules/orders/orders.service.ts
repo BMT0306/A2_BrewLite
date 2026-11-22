@@ -128,15 +128,6 @@ export class OrdersService {
         "Khách hàng không có quyền chuyển trạng thái pha chế. Chỉ tài khoản Nhân viên / Quản lý mới được phép.",
       );
     }
-    if (
-      order.status !== OrderStatus.PENDING &&
-      order.status !== OrderStatus.CONFIRMED &&
-      order.status !== OrderStatus.CANCELLED
-    ) {
-      throw new BadRequestException(
-        "Không thể hủy đơn hàng đang được pha chế hoặc đã hoàn tất.",
-      );
-    }
   }
 
   async create(userId: string, dto: CreateOrderDto) {
